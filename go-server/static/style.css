@@ -1,135 +1,133 @@
-/* 全体の基本スタイル */
+/* --- 基本設定とレイアウト --- */
+:root {
+    --header-height: 60px;
+    --border-color: #d1d5db;
+    --background-color: #f9fafb;
+}
+
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
-    background-color: #f0f2f5;
-    color: #333;
+    background-color: var(--background-color);
+    color: #111827;
+    overflow: hidden; /* スクロールバーを非表示に */
+}
+
+.dashboard-container {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    height: 100vh;
 }
 
-.container {
-    width: 100%;
-    max-width: 1200px;
-    padding: 20px;
-}
-
-header {
-    text-align: center;
-    margin-bottom: 20px;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 10px;
-}
-
-header h1 {
-    margin: 0;
-    color: #1a237e;
-}
-
-/* 操作パネルのスタイル */
-.controls {
+/* --- ヘッダー（操作パネル） --- */
+.controls-header {
+    height: var(--header-height);
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 15px;
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: #ffffff;
+    gap: 25px;
+    flex-shrink: 0;
 }
 
 .control-group {
     display: flex;
     align-items: center;
+    gap: 8px;
 }
 
 .control-group label {
-    margin-right: 10px;
+    font-size: 14px;
     font-weight: 500;
 }
 
-select, input[type="range"] {
+select, button {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
     font-size: 14px;
+    background-color: #fff;
 }
 
-select {
-    padding: 8px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
+button {
+    cursor: pointer;
+}
+button:hover {
+    background-color: #f3f4f6;
 }
 
 .slider-group {
     flex-grow: 1;
-    margin: 0 30px;
 }
 
 #date-slider {
     width: 100%;
-    cursor: pointer;
+    max-width: 400px;
 }
 
 #date-display {
-    min-width: 100px;
-    text-align: center;
+    font-family: monospace;
+    font-size: 14px;
     font-weight: 500;
-    background-color: #e3f2fd;
-    padding: 5px 10px;
-    border-radius: 4px;
+    min-width: 90px;
 }
 
-/* メインコンテンツ（チャートとテーブル）のスタイル */
-.main-content {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 20px;
+/* --- チャートパネル --- */
+.chart-panel {
+    flex-grow: 1;
+    position: relative;
+    background-color: #ffffff;
 }
-
-#chart-container, #table-container {
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
 #chart-container {
-    min-height: 500px;
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    right: 15px;
+    bottom: 15px;
 }
 
-/* データテーブルのスタイル */
+/* --- テーブルパネル --- */
+.table-panel {
+    height: 35vh; /* ビューポートの高さの35% */
+    min-height: 200px;
+    border-top: 1px solid var(--border-color);
+    background-color: #ffffff;
+    flex-shrink: 0;
+    overflow-y: auto; /* テーブルがはみ出たらスクロール */
+}
+
+.table-container {
+    padding: 0 15px;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
 }
 
 th, td {
-    padding: 12px;
-    border-bottom: 1px solid #ddd;
+    padding: 10px 12px;
     text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
 }
 
 thead th {
-    background-color: #f7f9fc;
+    font-size: 12px;
     font-weight: 600;
-    color: #555;
+    color: #6b7280;
+    background-color: #f9fafb;
+    position: sticky; /* スクロールしてもヘッダーを固定 */
+    top: 0;
+    z-index: 1;
+}
+
+tbody td {
+    font-size: 14px;
 }
 
 tbody tr:hover {
-    background-color: #f1f1f1;
+    background-color: #f3f4f6;
 }
 
-/* レスポンシブ対応 */
-@media (max-width: 900px) {
-    .main-content {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 600px) {
-    .controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .slider-group {
-        margin: 15px 0;
-    }
-}

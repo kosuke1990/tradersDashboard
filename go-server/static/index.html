@@ -3,36 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RRGトレーダーダッシュボード</title>
-    <!-- 外部CSSファイルを読み込み -->
+    <title>RRG Dashboard</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Chart.jsライブラリを読み込み -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    
+    <!-- Chart.js 本体と、必要なプラグイン3つを defer で読み込む -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js" defer></script>
+    
+    <!-- 最後にメインのスクリプトを読み込む -->
+    <script src="script.js" defer></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>RRGトレーダーダッシュボード</h1>
-        </header>
-
-        <div class="controls">
+    <div class="dashboard-container">
+        <header class="controls-header">
             <div class="control-group">
                 <label for="benchmark-select">ベンチマーク:</label>
                 <select id="benchmark-select"></select>
             </div>
             <div class="control-group slider-group">
                 <label for="date-slider">日付:</label>
-                <input type="range" id="date-slider" min="0" max="100" value="100" disabled>
+                <input type="range" id="date-slider" min="0" max="0" value="0">
                 <span id="date-display"></span>
             </div>
-        </div>
+            <div class="control-group">
+                <button id="reset-zoom-btn">ズームリセット</button>
+            </div>
+        </header>
 
-        <main class="main-content">
+        <main class="chart-panel">
             <div id="chart-container">
                 <canvas id="rrgChart"></canvas>
             </div>
-            <div id="table-container">
+        </main>
+
+        <footer class="table-panel">
+            <div class="table-container">
                 <table>
                     <thead>
                         <tr>
@@ -41,16 +48,11 @@
                             <th>RS-Momentum</th>
                         </tr>
                     </thead>
-                    <tbody id="data-table-body">
-                        <!-- データはJavaScriptで動的に挿入されます -->
-                    </tbody>
+                    <tbody id="data-table-body"></tbody>
                 </table>
             </div>
-        </main>
+        </footer>
     </div>
-
-    <!-- 外部JavaScriptファイルを読み込み -->
-    <script src="script.js"></script>
 </body>
 </html>
 
