@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # Goで動くメインサーバー（クライアント向け）
+  go-server:
+    build:
+      context: ./go-server
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080" # ローカルPCの8080番ポートをコンテナの8080番に接続
+    environment:
+      # GoサーバーがPythonサーバーを見つけるためのURL
+      - PYTHON_CALCULATOR_URL=http://python-server:8001
+    depends_on:
+      - python-server # Pythonサーバーが起動してからGoサーバーを起動する
+
+  # Pythonで動く計算サーバー（内部用）
+  python-server:
+    build:
+      context: ./python-server
+      dockerfile: Dockerfile
+    # ★★★ この部分を変更します ★★★
+    # expose:
+    #  - "8001"
+    ports:
+      - "8001:8001" # 外部にも公開して直接アクセスできるようにする
+

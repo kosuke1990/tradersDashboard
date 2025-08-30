@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RRGトレーダーダッシュボード</title>
+    <!-- 外部CSSファイルを読み込み -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Chart.jsライブラリを読み込み -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>RRGトレーダーダッシュボード</h1>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="benchmark-select">ベンチマーク:</label>
+                <select id="benchmark-select"></select>
+            </div>
+            <div class="control-group slider-group">
+                <label for="date-slider">日付:</label>
+                <input type="range" id="date-slider" min="0" max="100" value="100" disabled>
+                <span id="date-display"></span>
+            </div>
+        </div>
+
+        <main class="main-content">
+            <div id="chart-container">
+                <canvas id="rrgChart"></canvas>
+            </div>
+            <div id="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>銘柄</th>
+                            <th>RS-Ratio</th>
+                            <th>RS-Momentum</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-table-body">
+                        <!-- データはJavaScriptで動的に挿入されます -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- 外部JavaScriptファイルを読み込み -->
+    <script src="script.js"></script>
+</body>
+</html>
+
