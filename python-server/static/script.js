@@ -1,6 +1,6 @@
 /**
- * Interactive Sector Rotation Dashboard
- * Final Professional Version with Fixed RRG Chart Zoom/Pan
+ * Enhanced Interactive Sector Rotation Dashboard
+ * With Time-axis and Tail-length Sliders
  */
 
 // --- グローバル設定 ---
@@ -19,14 +19,16 @@ const SERIES_COLORS = [
 const state = {
     benchmark: '1306.T',
     targetDate: new Date().toISOString().split('T')[0],
-    dashboardData: { benchmark_ohlc: [], sectors: [] },
+    dashboardData: { benchmark_ohlc: [], historical_data: {}, date_range: [] },
     visibleSectors: new Set(),
     isLoading: true,
+    // 新しい状態
+    currentDateIndex: 0,
+    tailLength: 5,
 };
 
 // --- チャートインスタンス ---
 let rrgChart = null;
-let dateSliderChart = null;
 
 // --- DOM読み込み完了後にアプリケーションを初期化 ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -34,16 +36,23 @@ document.addEventListener('DOMContentLoaded', () => {
         benchmarkSelect: document.getElementById('benchmark-select'),
         dateDisplay: document.getElementById('date-display'),
         rrgChartContainer: document.getElementById('rrg-chart'),
-        dateSliderContainer: document.getElementById('date-slider-container'),
         longCandidateTable: document.getElementById('long-candidate-table'),
         shortCandidateTable: document.getElementById('short-candidate-table'),
         fullDataTableBody: document.getElementById('full-data-table-body'),
         dashboardContainer: document.querySelector('.dashboard-container'),
         resetZoomBtn: document.getElementById('reset-zoom-btn'),
+        // 新しい要素
+        timeAxisSlider: document.getElementById('time-axis-slider'),
+        tailLengthSlider: document.getElementById('tail-length-slider'),
+        timeAxisValue: document.getElementById('time-axis-value'),
+        tailLengthValue: document.getElementById('tail-length-value'),
+        exportCsvBtn: document.getElementById('export-csv-btn'),
+        exportJsonBtn: document.getElementById('export-json-btn'),
     };
 
     initializeBenchmarkSelector(elements);
     initializeCharts(elements);
+    initializeSliders(elements);
     addEventListeners(elements);
     fetchDashboardData(elements);
 });
@@ -59,12 +68,32 @@ function initializeBenchmarkSelector(elements) {
 
 function initializeCharts(elements) {
     rrgChart = echarts.init(elements.rrgChartContainer);
-    dateSliderChart = echarts.init(elements.dateSliderContainer);
 
     window.addEventListener('resize', () => {
         rrgChart?.resize();
-        dateSliderChart?.resize();
     });
+}
+
+function initializeSliders(elements) {
+    // 時間軸スライダーの初期化（データ取得後に設定）
+    if (elements.timeAxisSlider) {
+        elements.timeAxisSlider.addEventListener('input', (e) => {
+            state.currentDateIndex = parseInt(e.target.value);
+            updateCurrentDisplay(elements);
+        });
+    }
+    
+    // 軌跡長さスライダーの初期化
+    if (elements.tailLengthSlider) {
+        elements.tailLengthSlider.value = state.tailLength;
+        elements.tailLengthValue.textContent = `${state.tailLength}日`;
+        
+        elements.tailLengthSlider.addEventListener('input', (e) => {
+            state.tailLength = parseInt(e.target.value);
+            elements.tailLengthValue.textContent = `${state.tailLength}日`;
+            renderRRGChart(elements); // RRGチャートのみ再描画
+        });
+    }
 }
 
 function addEventListeners(elements) {
@@ -74,20 +103,10 @@ function addEventListeners(elements) {
         fetchDashboardData(elements);
     });
 
-    dateSliderChart.on('datazoom', (params) => {
-        const ohlc = state.dashboardData.benchmark_ohlc;
-        if (!ohlc || ohlc.length === 0 || state.isLoading) return;
-
-        const endPercent = params.batch ? params.batch[0].end : params.end;
-        const endIndex = Math.floor(ohlc.length * (endPercent / 100));
-        
-        const selectedDate = ohlc[Math.min(endIndex, ohlc.length - 1)]?.date;
-
-        if (selectedDate && selectedDate !== state.targetDate) {
-            state.targetDate = selectedDate;
-            fetchDashboardData(elements);
-        }
-    });
+    // 従来の日付スライダーは無効化
+    // dateSliderChart.on('datazoom', (params) => {
+    //     // コメントアウト
+    // });
 
     elements.fullDataTableBody.addEventListener('change', (e) => {
         if (e.target.type === 'checkbox') {
@@ -104,6 +123,15 @@ function addEventListeners(elements) {
     elements.resetZoomBtn.addEventListener('click', () => {
         rrgChart?.dispatchAction({ type: 'restore' });
     });
+
+    // エクスポート機能のイベントリスナー
+    elements.exportCsvBtn.addEventListener('click', () => {
+        exportData('csv');
+    });
+
+    elements.exportJsonBtn.addEventListener('click', () => {
+        exportData('json');
+    });
 }
 
 async function fetchDashboardData(elements) {
@@ -117,8 +145,18 @@ async function fetchDashboardData(elements) {
         }
         state.dashboardData = await response.json();
         
-        if (state.visibleSectors.size === 0 && state.dashboardData.sectors) {
-            state.dashboardData.sectors.forEach(s => state.visibleSectors.add(s.ticker));
+        // 初期化：最新の日付を選択
+        if (state.dashboardData.date_range && state.dashboardData.date_range.length > 0) {
+            state.currentDateIndex = state.dashboardData.date_range.length - 1;
+            setupTimeAxisSlider(elements);
+        }
+
+        // 表示セクターの初期化
+        const latestDate = getCurrentDateString();
+        if (state.visibleSectors.size === 0 && state.dashboardData.historical_data[latestDate]) {
+            state.dashboardData.historical_data[latestDate].sectors.forEach(s => {
+                state.visibleSectors.add(s.ticker);
+            });
         }
 
         renderAll(elements);
@@ -130,45 +168,51 @@ async function fetchDashboardData(elements) {
     }
 }
 
-function renderAll(elements) {
-    elements.dateDisplay.textContent = `基準日: ${state.targetDate}`;
-    renderDateSliderChart(elements);
+function setupTimeAxisSlider(elements) {
+    if (elements.timeAxisSlider && state.dashboardData.date_range) {
+        const dateRange = state.dashboardData.date_range;
+        elements.timeAxisSlider.min = 0;
+        elements.timeAxisSlider.max = dateRange.length - 1;
+        elements.timeAxisSlider.value = state.currentDateIndex;
+        
+        // 日付ラベルの更新
+        updateTimeAxisValue(elements);
+    }
+}
+
+function updateTimeAxisValue(elements) {
+    if (elements.timeAxisValue && state.dashboardData.date_range) {
+        const currentDate = state.dashboardData.date_range[state.currentDateIndex];
+        elements.timeAxisValue.textContent = currentDate;
+    }
+}
+
+function getCurrentDateString() {
+    if (state.dashboardData.date_range && state.dashboardData.date_range.length > 0) {
+        return state.dashboardData.date_range[state.currentDateIndex];
+    }
+    return state.targetDate;
+}
+
+function getCurrentSectorData() {
+    const currentDate = getCurrentDateString();
+    return state.dashboardData.historical_data[currentDate]?.sectors || [];
+}
+
+function updateCurrentDisplay(elements) {
+    updateTimeAxisValue(elements);
     renderRRGChart(elements);
     renderTables(elements);
 }
 
-function renderDateSliderChart(elements) {
-    const ohlcData = state.dashboardData.benchmark_ohlc;
-    if (!ohlcData) return;
-    
-    const dates = ohlcData.map(item => item.date);
-    const closePrices = ohlcData.map(item => item.close);
-
-    const option = {
-        grid: { left: '3%', right: '4%', top: '10%', bottom: '25%' },
-        xAxis: { type: 'category', data: dates, boundaryGap: false, axisLine: { onZero: false }, axisLabel: { show: false }, axisTick: { show: false } },
-        yAxis: { type: 'value', show: false },
-        dataZoom: [
-            { type: 'slider', xAxisIndex: 0, start: 80, end: 100, height: 25, bottom: '5%' },
-            { type: 'inside', xAxisIndex: 0 }
-        ],
-        series: [{
-            type: 'line', data: closePrices, symbol: 'none',
-            lineStyle: { color: '#0056b3', width: 1.5 },
-            areaStyle: {
-                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{
-                    offset: 0, color: 'rgba(0, 86, 179, 0.4)'
-                }, {
-                    offset: 1, color: 'rgba(0, 86, 179, 0.1)'
-                }])
-            }
-        }]
-    };
-    dateSliderChart.setOption(option, true);
+function renderAll(elements) {
+    elements.dateDisplay.textContent = `基準日: ${getCurrentDateString()}`;
+    renderRRGChart(elements);
+    renderTables(elements);
 }
 
 function renderRRGChart(elements) {
-    const allSectors = state.dashboardData.sectors;
+    const allSectors = getCurrentSectorData();
     if (!allSectors || allSectors.length === 0) {
         rrgChart.clear();
         return;
@@ -188,11 +232,16 @@ function renderRRGChart(elements) {
     const visibleSectors = allSectors.filter(s => state.visibleSectors.has(s.ticker));
     const series = visibleSectors.flatMap((sector, i) => {
         const color = SERIES_COLORS[i % SERIES_COLORS.length];
+        
+        // 軌跡データを tailLength でフィルタリング
+        const fullTail = sector.tail || [];
+        const filteredTail = fullTail.slice(-state.tailLength);
+        
         return [
             { 
                 name: sector.name, 
                 type: 'line', 
-                data: sector.tail, 
+                data: filteredTail, 
                 symbol: 'none', 
                 lineStyle: { width: 2, color }, 
                 tooltip: { show: false },
@@ -233,7 +282,6 @@ function renderRRGChart(elements) {
             max: xMax, 
             splitLine: { show: true, lineStyle: { type: 'dashed', color: '#ddd' } }, 
             axisLine: { onZero: false },
-            // 基準線を軸の固定線として表示
             splitNumber: 10
         },
         yAxis: { 
@@ -245,7 +293,6 @@ function renderRRGChart(elements) {
             axisLine: { onZero: false },
             splitNumber: 10
         },
-        // 4象限の背景を markArea で実装
         series: [
             // 背景の象限エリア
             {
@@ -255,7 +302,6 @@ function renderRRGChart(elements) {
                     silent: true,
                     itemStyle: { opacity: 0.1 },
                     data: [
-                        // Leading象限（右上） - 緑色
                         [{
                             xAxis: 100, 
                             yAxis: 100,
@@ -264,7 +310,6 @@ function renderRRGChart(elements) {
                             xAxis: xMax, 
                             yAxis: yMax
                         }],
-                        // Improving象限（左上） - 青色
                         [{
                             xAxis: xMin, 
                             yAxis: 100,
@@ -273,7 +318,6 @@ function renderRRGChart(elements) {
                             xAxis: 100, 
                             yAxis: yMax
                         }],
-                        // Lagging象限（左下） - 赤色
                         [{
                             xAxis: xMin, 
                             yAxis: yMin,
@@ -282,7 +326,6 @@ function renderRRGChart(elements) {
                             xAxis: 100, 
                             yAxis: 100
                         }],
-                        // Weakening象限（右下） - 橙色
                         [{
                             xAxis: 100, 
                             yAxis: yMin,
@@ -293,21 +336,19 @@ function renderRRGChart(elements) {
                         }]
                     ]
                 },
-                // 基準線
                 markLine: {
                     silent: true,
                     symbol: 'none',
                     lineStyle: { type: 'solid', color: '#888', width: 2 },
                     data: [
-                        { xAxis: 100 }, // 垂直線
-                        { yAxis: 100 }  // 水平線
+                        { xAxis: 100 },
+                        { yAxis: 100 }
                     ]
                 },
                 z: 1
             },
             ...series
         ],
-        // 象限ラベル用のグラフィック
         graphic: [
             {
                 type: 'text',
@@ -353,16 +394,6 @@ function renderRRGChart(elements) {
                 },
                 z: 6
             }
-        ],
-        dataZoom: [
-            { 
-                type: 'inside', 
-                xAxisIndex: 0, 
-                yAxisIndex: 0,
-                moveOnMouseMove: true,
-                moveOnMouseWheel: true,
-                preventDefaultMouseMove: false
-            }
         ]
     };
 
@@ -370,7 +401,7 @@ function renderRRGChart(elements) {
 }
 
 function renderTables(elements) {
-    const { sectors } = state.dashboardData;
+    const sectors = getCurrentSectorData();
     if (!sectors) return;
 
     const longCandidates = [];
@@ -437,9 +468,100 @@ function setLoadingState(elements, isLoading) {
 
     if (isLoading) {
         rrgChart?.showLoading();
-        dateSliderChart?.showLoading();
     } else {
         rrgChart?.hideLoading();
-        dateSliderChart?.hideLoading();
     }
+}
+
+// エクスポート機能
+function exportData(format) {
+    if (!state.dashboardData.historical_data || !state.dashboardData.date_range) {
+        alert('エクスポートするデータがありません。');
+        return;
+    }
+
+    const exportData = prepareExportData();
+    const filename = `sector_rrg_data_${state.benchmark}_${new Date().toISOString().split('T')[0]}`;
+
+    if (format === 'csv') {
+        downloadCSV(exportData, `${filename}.csv`);
+    } else if (format === 'json') {
+        downloadJSON(exportData, `${filename}.json`);
+    }
+}
+
+function prepareExportData() {
+    const flatData = [];
+    
+    state.dashboardData.date_range.forEach(date => {
+        const dayData = state.dashboardData.historical_data[date];
+        if (dayData && dayData.sectors) {
+            dayData.sectors.forEach(sector => {
+                flatData.push({
+                    date: date,
+                    benchmark: state.benchmark,
+                    sector_name: sector.name,
+                    sector_ticker: sector.ticker,
+                    price: sector.price,
+                    change_pct: sector.change_pct,
+                    rs_ratio: sector.rs_ratio,
+                    rs_momentum: sector.rs_momentum,
+                    quadrant: sector.quadrant,
+                    weekly_change_pct: sector.weekly_change_pct
+                });
+            });
+        }
+    });
+
+    return flatData;
+}
+
+function downloadCSV(data, filename) {
+    if (data.length === 0) return;
+
+    // CSVヘッダー
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+        headers.join(','),
+        ...data.map(row => headers.map(header => {
+            const value = row[header];
+            // 数値以外はクォートで囲む
+            return typeof value === 'string' ? `"${value}"` : value;
+        }).join(','))
+    ].join('\n');
+
+    downloadFile(csvContent, filename, 'text/csv;charset=utf-8;');
+}
+
+function downloadJSON(data, filename) {
+    const jsonContent = JSON.stringify({
+        metadata: {
+            export_date: new Date().toISOString(),
+            benchmark: state.benchmark,
+            date_range: {
+                start: state.dashboardData.date_range[0],
+                end: state.dashboardData.date_range[state.dashboardData.date_range.length - 1]
+            },
+            total_records: data.length
+        },
+        data: data
+    }, null, 2);
+
+    downloadFile(jsonContent, filename, 'application/json;charset=utf-8;');
+}
+
+function downloadFile(content, filename, contentType) {
+    const blob = new Blob([content], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    window.URL.revokeObjectURL(url);
 }
