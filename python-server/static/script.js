@@ -1,6 +1,6 @@
 /**
  * Interactive Sector Rotation Dashboard
- * Final Professional Version
+ * Final Professional Version with Fixed RRG Chart Zoom/Pan
  */
 
 // --- グローバル設定 ---
@@ -174,6 +174,7 @@ function renderRRGChart(elements) {
         return;
     }
 
+    // データの範囲を計算
     let maxAbsX = 5, maxAbsY = 5;
     allSectors.forEach(s => {
         maxAbsX = Math.max(maxAbsX, Math.abs(s.rs_ratio - 100));
@@ -188,45 +189,183 @@ function renderRRGChart(elements) {
     const series = visibleSectors.flatMap((sector, i) => {
         const color = SERIES_COLORS[i % SERIES_COLORS.length];
         return [
-            { name: sector.name, type: 'line', data: sector.tail, symbol: 'none', lineStyle: { width: 2, color }, tooltip: { show: false } },
-            { name: sector.name, type: 'scatter', data: [[sector.rs_ratio, sector.rs_momentum]], symbolSize: 12, itemStyle: { color }, label: { show: true, formatter: sector.name, position: 'right', fontSize: 10 } }
+            { 
+                name: sector.name, 
+                type: 'line', 
+                data: sector.tail, 
+                symbol: 'none', 
+                lineStyle: { width: 2, color }, 
+                tooltip: { show: false },
+                z: 10
+            },
+            { 
+                name: sector.name, 
+                type: 'scatter', 
+                data: [[sector.rs_ratio, sector.rs_momentum]], 
+                symbolSize: 12, 
+                itemStyle: { color }, 
+                label: { 
+                    show: true, 
+                    formatter: sector.name, 
+                    position: 'right', 
+                    fontSize: 10 
+                },
+                z: 10
+            }
         ];
     });
 
     const option = {
         tooltip: { 
             trigger: 'item',
-            formatter: (params) => `<b>${params.name}</b><br/>RS-Ratio: ${params.value[0].toFixed(2)}<br/>RS-Momentum: ${params.value[1].toFixed(2)}`
+            formatter: (params) => {
+                if (params.value && params.value.length >= 2) {
+                    return `<b>${params.name}</b><br/>RS-Ratio: ${params.value[0].toFixed(2)}<br/>RS-Momentum: ${params.value[1].toFixed(2)}`;
+                }
+                return `<b>${params.name}</b>`;
+            }
         },
         grid: { left: '10%', right: '15%', bottom: '10%', top: '10%' },
-        xAxis: { type: 'value', name: 'JdK RS-Ratio', min: xMin, max: xMax, splitLine: { show: true, lineStyle: { type: 'dashed', color: '#ddd' } }, axisLine: { onZero: false } },
+        xAxis: { 
+            type: 'value', 
+            name: 'JdK RS-Ratio', 
+            min: xMin, 
+            max: xMax, 
+            splitLine: { show: true, lineStyle: { type: 'dashed', color: '#ddd' } }, 
+            axisLine: { onZero: false },
+            // 基準線を軸の固定線として表示
+            splitNumber: 10
+        },
         yAxis: { 
-            type: 'value', name: 'JdK RS-Momentum', min: yMin, max: yMax, splitLine: { show: true, lineStyle: { type: 'dashed', color: '#ddd' } }, axisLine: { onZero: false },
-            markArea: {
-                silent: true,
-                data: [
-                    [{ xAxis: 100, yAxis: 100, itemStyle: { color: 'rgba(204, 235, 204, 0.3)'} }, { xAxis: 'max', yAxis: 'max' }],
-                    [{ xAxis: 'min', yAxis: 100, itemStyle: { color: 'rgba(204, 229, 255, 0.3)'} }, { xAxis: 100, yAxis: 'max' }],
-                    [{ xAxis: 'min', yAxis: 'min', itemStyle: { color: 'rgba(255, 204, 204, 0.3)'} }, { xAxis: 100, yAxis: 100 }],
-                    [{ xAxis: 100, yAxis: 'min', itemStyle: { color: 'rgba(255, 255, 204, 0.3)'} }, { xAxis: 'max', yAxis: 100 }]
-                ]
+            type: 'value', 
+            name: 'JdK RS-Momentum', 
+            min: yMin, 
+            max: yMax, 
+            splitLine: { show: true, lineStyle: { type: 'dashed', color: '#ddd' } }, 
+            axisLine: { onZero: false },
+            splitNumber: 10
+        },
+        // 4象限の背景を markArea で実装
+        series: [
+            // 背景の象限エリア
+            {
+                type: 'scatter',
+                data: [],
+                markArea: {
+                    silent: true,
+                    itemStyle: { opacity: 0.1 },
+                    data: [
+                        // Leading象限（右上） - 緑色
+                        [{
+                            xAxis: 100, 
+                            yAxis: 100,
+                            itemStyle: { color: 'rgba(76, 175, 80, 0.3)' }
+                        }, {
+                            xAxis: xMax, 
+                            yAxis: yMax
+                        }],
+                        // Improving象限（左上） - 青色
+                        [{
+                            xAxis: xMin, 
+                            yAxis: 100,
+                            itemStyle: { color: 'rgba(33, 150, 243, 0.3)' }
+                        }, {
+                            xAxis: 100, 
+                            yAxis: yMax
+                        }],
+                        // Lagging象限（左下） - 赤色
+                        [{
+                            xAxis: xMin, 
+                            yAxis: yMin,
+                            itemStyle: { color: 'rgba(244, 67, 54, 0.3)' }
+                        }, {
+                            xAxis: 100, 
+                            yAxis: 100
+                        }],
+                        // Weakening象限（右下） - 橙色
+                        [{
+                            xAxis: 100, 
+                            yAxis: yMin,
+                            itemStyle: { color: 'rgba(255, 193, 7, 0.3)' }
+                        }, {
+                            xAxis: xMax, 
+                            yAxis: 100
+                        }]
+                    ]
+                },
+                // 基準線
+                markLine: {
+                    silent: true,
+                    symbol: 'none',
+                    lineStyle: { type: 'solid', color: '#888', width: 2 },
+                    data: [
+                        { xAxis: 100 }, // 垂直線
+                        { yAxis: 100 }  // 水平線
+                    ]
+                },
+                z: 1
             },
-            markLine: { silent: true, symbol: 'none', lineStyle: { type: 'solid', color: '#888' }, data: [{ xAxis: 100 }, { yAxis: 100 }] }
-        },
-        graphic: {
-            elements: [
-                { type: 'text', right: '16%', top: '11%', style: { text: 'Leading', fill: 'green', font: 'bold 14px sans-serif' } },
-                { type: 'text', left: '11%', top: '11%', style: { text: 'Improving', fill: 'blue', font: 'bold 14px sans-serif' } },
-                { type: 'text', left: '11%', bottom: '11%', style: { text: 'Lagging', fill: 'red', font: 'bold 14px sans-serif' } },
-                { type: 'text', right: '16%', bottom: '11%', style: { text: 'Weakening', fill: '#b45f06', font: 'bold 14px sans-serif' } },
-            ]
-        },
-        dataZoom: [
-            { type: 'inside', moveOnMouseMove: true, xAxisIndex: 0, yAxisIndex: 0 },
-            { type: 'slider', show: false }
+            ...series
         ],
-        series: series
+        // 象限ラベル用のグラフィック
+        graphic: [
+            {
+                type: 'text',
+                right: '16%',
+                top: '11%',
+                style: {
+                    text: 'Leading',
+                    fill: '#4CAF50',
+                    font: 'bold 14px sans-serif'
+                },
+                z: 6
+            },
+            {
+                type: 'text',
+                left: '11%',
+                top: '11%',
+                style: {
+                    text: 'Improving',
+                    fill: '#2196F3',
+                    font: 'bold 14px sans-serif'
+                },
+                z: 6
+            },
+            {
+                type: 'text',
+                left: '11%',
+                bottom: '11%',
+                style: {
+                    text: 'Lagging',
+                    fill: '#F44336',
+                    font: 'bold 14px sans-serif'
+                },
+                z: 6
+            },
+            {
+                type: 'text',
+                right: '16%',
+                bottom: '11%',
+                style: {
+                    text: 'Weakening',
+                    fill: '#FF9800',
+                    font: 'bold 14px sans-serif'
+                },
+                z: 6
+            }
+        ],
+        dataZoom: [
+            { 
+                type: 'inside', 
+                xAxisIndex: 0, 
+                yAxisIndex: 0,
+                moveOnMouseMove: true,
+                moveOnMouseWheel: true,
+                preventDefaultMouseMove: false
+            }
+        ]
     };
+
     rrgChart.setOption(option, true);
 }
 
