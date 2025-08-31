@@ -1,6 +1,6 @@
 /**
  * Interactive Sector Rotation Dashboard
- * Final Version with RRG as main chart
+ * Final Professional Version
  */
 
 // --- グローバル設定 ---
@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         shortCandidateTable: document.getElementById('short-candidate-table'),
         fullDataTableBody: document.getElementById('full-data-table-body'),
         dashboardContainer: document.querySelector('.dashboard-container'),
+        resetZoomBtn: document.getElementById('reset-zoom-btn'),
     };
 
     initializeBenchmarkSelector(elements);
@@ -47,9 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchDashboardData(elements);
 });
 
-/**
- * ベンチマーク選択のプルダウンを初期化
- */
 function initializeBenchmarkSelector(elements) {
     const select = elements.benchmarkSelect;
     Object.entries(BENCHMARKS).forEach(([ticker, name]) => {
@@ -59,9 +57,6 @@ function initializeBenchmarkSelector(elements) {
     select.value = state.benchmark;
 }
 
-/**
- * チャートインスタンスを初期化
- */
 function initializeCharts(elements) {
     rrgChart = echarts.init(elements.rrgChartContainer);
     dateSliderChart = echarts.init(elements.dateSliderContainer);
@@ -72,9 +67,6 @@ function initializeCharts(elements) {
     });
 }
 
-/**
- * イベントリスナーを設定
- */
 function addEventListeners(elements) {
     elements.benchmarkSelect.addEventListener('change', (e) => {
         state.benchmark = e.target.value;
@@ -108,11 +100,12 @@ function addEventListeners(elements) {
             renderRRGChart(elements);
         }
     });
+
+    elements.resetZoomBtn.addEventListener('click', () => {
+        rrgChart?.dispatchAction({ type: 'restore' });
+    });
 }
 
-/**
- * APIからダッシュボード全体のデータを取得
- */
 async function fetchDashboardData(elements) {
     setLoadingState(elements, true);
     try {
@@ -137,19 +130,13 @@ async function fetchDashboardData(elements) {
     }
 }
 
-/**
- * 全てのUIコンポーネントを描画
- */
 function renderAll(elements) {
     elements.dateDisplay.textContent = `基準日: ${state.targetDate}`;
-    renderDateSliderChart(elements); // ★★★ この行が重要 ★★★
+    renderDateSliderChart(elements);
     renderRRGChart(elements);
     renderTables(elements);
 }
 
-/**
- * データズームスライダーチャートを描画
- */
 function renderDateSliderChart(elements) {
     const ohlcData = state.dashboardData.benchmark_ohlc;
     if (!ohlcData) return;
@@ -158,43 +145,47 @@ function renderDateSliderChart(elements) {
     const closePrices = ohlcData.map(item => item.close);
 
     const option = {
-        grid: { left: '3%', right: '3%', top: '10%', bottom: '20%' },
-        xAxis: { type: 'category', data: dates, boundaryGap: false, axisLine: { onZero: false } },
+        grid: { left: '3%', right: '4%', top: '10%', bottom: '25%' },
+        xAxis: { type: 'category', data: dates, boundaryGap: false, axisLine: { onZero: false }, axisLabel: { show: false }, axisTick: { show: false } },
         yAxis: { type: 'value', show: false },
         dataZoom: [
-            { type: 'slider', xAxisIndex: 0, start: 80, end: 100, height: 20, bottom: '5%' },
+            { type: 'slider', xAxisIndex: 0, start: 80, end: 100, height: 25, bottom: '5%' },
             { type: 'inside', xAxisIndex: 0 }
         ],
         series: [{
             type: 'line', data: closePrices, symbol: 'none',
-            lineStyle: { color: '#4363d8', width: 1 },
+            lineStyle: { color: '#0056b3', width: 1.5 },
             areaStyle: {
                 color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{
-                    offset: 0, color: 'rgba(67, 99, 216, 0.4)'
+                    offset: 0, color: 'rgba(0, 86, 179, 0.4)'
                 }, {
-                    offset: 1, color: 'rgba(67, 99, 216, 0.1)'
+                    offset: 1, color: 'rgba(0, 86, 179, 0.1)'
                 }])
             }
         }]
     };
-    dateSliderChart.setOption(option);
+    dateSliderChart.setOption(option, true);
 }
 
-/**
- * RRGチャートを描画
- */
 function renderRRGChart(elements) {
-    const sectors = state.dashboardData.sectors.filter(s => state.visibleSectors.has(s.ticker));
+    const allSectors = state.dashboardData.sectors;
+    if (!allSectors || allSectors.length === 0) {
+        rrgChart.clear();
+        return;
+    }
 
     let maxAbsX = 5, maxAbsY = 5;
-    sectors.forEach(s => {
+    allSectors.forEach(s => {
         maxAbsX = Math.max(maxAbsX, Math.abs(s.rs_ratio - 100));
         maxAbsY = Math.max(maxAbsY, Math.abs(s.rs_momentum - 100));
     });
-    const xMax = 100 + maxAbsX * 1.1; const xMin = 100 - maxAbsX * 1.1;
-    const yMax = 100 + maxAbsY * 1.1; const yMin = 100 - maxAbsY * 1.1;
+    const xMax = 100 + maxAbsX * 1.15;
+    const xMin = 100 - maxAbsX * 1.15;
+    const yMax = 100 + maxAbsY * 1.15;
+    const yMin = 100 - maxAbsY * 1.15;
 
-    const series = sectors.flatMap((sector, i) => {
+    const visibleSectors = allSectors.filter(s => state.visibleSectors.has(s.ticker));
+    const series = visibleSectors.flatMap((sector, i) => {
         const color = SERIES_COLORS[i % SERIES_COLORS.length];
         return [
             { name: sector.name, type: 'line', data: sector.tail, symbol: 'none', lineStyle: { width: 2, color }, tooltip: { show: false } },
@@ -214,13 +205,21 @@ function renderRRGChart(elements) {
             markArea: {
                 silent: true,
                 data: [
-                    [{ name: 'Leading', xAxis: 100, yAxis: 100, itemStyle: { color: 'rgba(204, 235, 204, 0.3)'}, label: { color: 'green', position: 'insideTopRight', distance: 15, fontSize: 14, fontWeight: 'bold' } }, { xAxis: xMax, yAxis: yMax }],
-                    [{ name: 'Improving', xAxis: xMin, yAxis: 100, itemStyle: { color: 'rgba(204, 229, 255, 0.3)'}, label: { color: 'blue', position: 'insideTopLeft', distance: 15, fontSize: 14, fontWeight: 'bold' } }, { xAxis: 100, yAxis: yMax }],
-                    [{ name: 'Lagging', xAxis: xMin, yAxis: yMin, itemStyle: { color: 'rgba(255, 204, 204, 0.3)'}, label: { color: 'red', position: 'insideBottomLeft', distance: 15, fontSize: 14, fontWeight: 'bold' } }, { xAxis: 100, yAxis: 100 }],
-                    [{ name: 'Weakening', xAxis: 100, yAxis: yMin, itemStyle: { color: 'rgba(255, 255, 204, 0.3)'}, label: { color: '#b45f06', position: 'insideBottomRight', distance: 15, fontSize: 14, fontWeight: 'bold' } }, { xAxis: xMax, yAxis: 100 }]
+                    [{ xAxis: 100, yAxis: 100, itemStyle: { color: 'rgba(204, 235, 204, 0.3)'} }, { xAxis: 'max', yAxis: 'max' }],
+                    [{ xAxis: 'min', yAxis: 100, itemStyle: { color: 'rgba(204, 229, 255, 0.3)'} }, { xAxis: 100, yAxis: 'max' }],
+                    [{ xAxis: 'min', yAxis: 'min', itemStyle: { color: 'rgba(255, 204, 204, 0.3)'} }, { xAxis: 100, yAxis: 100 }],
+                    [{ xAxis: 100, yAxis: 'min', itemStyle: { color: 'rgba(255, 255, 204, 0.3)'} }, { xAxis: 'max', yAxis: 100 }]
                 ]
             },
             markLine: { silent: true, symbol: 'none', lineStyle: { type: 'solid', color: '#888' }, data: [{ xAxis: 100 }, { yAxis: 100 }] }
+        },
+        graphic: {
+            elements: [
+                { type: 'text', right: '16%', top: '11%', style: { text: 'Leading', fill: 'green', font: 'bold 14px sans-serif' } },
+                { type: 'text', left: '11%', top: '11%', style: { text: 'Improving', fill: 'blue', font: 'bold 14px sans-serif' } },
+                { type: 'text', left: '11%', bottom: '11%', style: { text: 'Lagging', fill: 'red', font: 'bold 14px sans-serif' } },
+                { type: 'text', right: '16%', bottom: '11%', style: { text: 'Weakening', fill: '#b45f06', font: 'bold 14px sans-serif' } },
+            ]
         },
         dataZoom: [
             { type: 'inside', moveOnMouseMove: true, xAxisIndex: 0, yAxisIndex: 0 },
@@ -231,9 +230,6 @@ function renderRRGChart(elements) {
     rrgChart.setOption(option, true);
 }
 
-/**
- * 全てのテーブルを描画
- */
 function renderTables(elements) {
     const { sectors } = state.dashboardData;
     if (!sectors) return;
@@ -295,9 +291,6 @@ function renderTables(elements) {
     `;
 }
 
-/**
- * ローディング状態のUIを更新
- */
 function setLoadingState(elements, isLoading) {
     state.isLoading = isLoading;
     elements.dashboardContainer.style.opacity = isLoading ? '0.5' : '1';
