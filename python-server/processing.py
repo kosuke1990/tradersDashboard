@@ -1,9 +1,11 @@
 import pandas as pd
-import yfinance as yf
+import yfinance
 import json
 import logging
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, HTTPException
+from fastapi.staticfiles import StaticFiles
 from typing import List, Dict, Any
+from datetime import datetime, timedelta
 
 # ==============================================================================
 # 設定 (Configuration)
@@ -11,112 +13,124 @@ from typing import List, Dict, Any
 logging.basicConfig(level=logging.INFO)
 app = FastAPI()
 
-# --- 定数 (Constants) ---
-PERIOD = "2y"
-RS_RATIO_WINDOW = 52
-RS_MOMENTUM_CHANGE_PERIOD = 4
-RS_MOMENTUM_ROLLING_WINDOW = 13
-TICKERS_FILEPATH = 'tickers.json'
+# --- 短期設定のパラメータ ---
+PERIOD = "1y"
+RS_RATIO_WINDOW = 60
+RS_MOMENTUM_CHANGE_PERIOD = 5
+RS_MOMENTUM_ROLLING_WINDOW = 10
+TAIL_LENGTH = 5
+
+# --- 銘柄リスト ---
+BENCHMARK_TICKERS = {"1306.T": "TOPIX ETF", "1321.T": "日経225 ETF"}
+SECTOR_ETFS = {
+    "1617.T": "食品", "1618.T": "エネ資源", "1619.T": "建設資材",
+    "1620.T": "素材化学", "1621.T": "医薬品", "1622.T": "自動車",
+    "1623.T": "鉄非鉄", "1624.T": "機械", "1625.T": "電機精密",
+    "1626.T": "情通サービス", "1627.T": "電力ガス", "1628.T": "運輸物流",
+    "1629.T": "商社卸売", "1630.T": "小売", "1631.T": "銀行",
+    "1632.T": "金融(銀除)", "1633.T": "不動産"
+}
+SECTOR_TICKERS = list(SECTOR_ETFS.keys())
 
 # ==============================================================================
 # ヘルパー関数 (Helper Functions)
 # ==============================================================================
-def load_tickers(filepath: str) -> List[Dict[str, str]]:
-    try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        logging.error(f"{filepath} not found.")
-        return []
-
-def fetch_stock_data(symbols: List[str], period: str) -> pd.DataFrame:
-    logging.info(f"Fetching data for {len(symbols)} symbols...")
-    raw_data = yf.download(symbols, period=period, progress=False)
-    
-    if raw_data.empty or 'Close' not in raw_data.columns:
-        logging.warning("Could not download valid 'Close' data.")
-        return pd.DataFrame()
-        
-    logging.info("Data fetching complete.")
-    return raw_data['Close'].dropna(how='all')
-
-def calculate_rrg_metrics(data: pd.DataFrame, benchmark_ticker: str) -> pd.DataFrame:
-    rs = data.drop(columns=benchmark_ticker, errors='ignore').div(data[benchmark_ticker], axis=0)
-    
-    rs_ratio = 100 + ((rs / rs.rolling(window=RS_RATIO_WINDOW).mean()) - 1) * 100
-    rs_momentum = 100 + rs.pct_change(periods=RS_MOMENTUM_CHANGE_PERIOD).rolling(window=RS_MOMENTUM_ROLLING_WINDOW).mean() * 100
-    
-    return pd.concat([rs_ratio, rs_momentum], axis=1, keys=['ratio', 'momentum'])
-
-# ★★★ この関数をシンプルで堅牢なロジックに置き換えました ★★★
-def format_data_for_frontend(rrg_df: pd.DataFrame, symbols_to_plot: List[Dict]) -> List[Dict]:
-    """
-    計算されたRRGデータフレームをフロントエンドが要求するJSON形式に整形する。
-    """
-    results_by_date = []
-    
-    # 計算結果の日付リストをループ
-    for date_ts in rrg_df.index:
-        date_str = date_ts.strftime('%Y-%m-%d')
-        points_on_date = []
-        
-        # プロット対象の銘柄をループ
-        for item in symbols_to_plot:
-            symbol = item['ticker']
-            
-            # MultiIndexのキーをタプルで指定
-            ratio_key = ('ratio', symbol)
-            momentum_key = ('momentum', symbol)
-            
-            # 計算結果のDataFrameにその銘柄のデータが存在するか確認
-            if ratio_key in rrg_df.columns and momentum_key in rrg_df.columns:
-                ratio_val = rrg_df.loc[date_ts, ratio_key]
-                momentum_val = rrg_df.loc[date_ts, momentum_key]
-                
-                # 計算結果がNaN（Not a Number）でないことを確認
-                if not pd.isna(ratio_val) and not pd.isna(momentum_val):
-                    points_on_date.append({
-                        'name': item['name'],
-                        'symbol': symbol,
-                        'rs_ratio': ratio_val,
-                        'rs_momentum': momentum_val,
-                    })
-
-        # その日に有効なデータが1つでもあれば、最終結果に追加
-        if points_on_date:
-            results_by_date.append({
-                'date': date_str,
-                'points': points_on_date
-            })
-            
-    return results_by_date
+def get_quadrant(rs_ratio, rs_momentum):
+    """RRGの象限を判定する"""
+    if rs_ratio >= 100 and rs_momentum >= 100:
+        return "Leading"
+    if rs_ratio < 100 and rs_momentum >= 100:
+        return "Improving"
+    if rs_ratio < 100 and rs_momentum < 100:
+        return "Lagging"
+    if rs_ratio >= 100 and rs_momentum < 100:
+        return "Weakening"
+    return "N/A"
 
 # ==============================================================================
 # APIエンドポイント (API Endpoints)
 # ==============================================================================
-TICKERS_MASTER = load_tickers(TICKERS_FILEPATH)
+@app.get("/calculate")
+def calculate_dashboard_data(
+    benchmark_ticker: str = Query(..., description="例: 1306.T or 1321.T"),
+    date: str = Query(..., description="基準日 (YYYY-MM-DD), 例: 2025-08-31")
+):
+    try:
+        target_date = datetime.strptime(date, '%Y-%m-%d').date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="日付のフォーマットは YYYY-MM-DD にしてください")
 
-@app.get("/tickers", response_model=List[Dict[str, str]])
-def get_tickers():
-    return TICKERS_MASTER
+    # --- 1. データ取得 ---
+    all_tickers_to_fetch = SECTOR_TICKERS + list(BENCHMARK_TICKERS.keys())
+    end_date_for_fetch = min(target_date + timedelta(days=1), datetime.now().date())
+    
+    raw_data = yfinance.download(
+        all_tickers_to_fetch,
+        period=PERIOD,
+        end=end_date_for_fetch,
+        progress=False
+    )
+    if raw_data.empty:
+        raise HTTPException(status_code=404, detail="指定された期間の株価データを取得できませんでした。")
 
-@app.get("/calculate", response_model=List[Dict[str, Any]])
-def calculate_rrg_endpoint(benchmark_ticker: str):
-    if not TICKERS_MASTER:
-        return []
+    # --- 2. ベンチマークのOHLCデータ整形 ---
+    benchmark_ohlc_raw = raw_data.loc[:, (slice(None), benchmark_ticker)]
+    benchmark_ohlc_raw.columns = benchmark_ohlc_raw.columns.droplevel(1)
+    benchmark_ohlc = benchmark_ohlc_raw[['Open', 'High', 'Low', 'Close']].reset_index()
+    benchmark_ohlc.columns = ['date_dt', 'open', 'high', 'low', 'close']
+    benchmark_ohlc['date'] = benchmark_ohlc['date_dt'].dt.strftime('%Y-%m-%d')
+    benchmark_ohlc_list = benchmark_ohlc.drop(columns=['date_dt']).to_dict('records')
 
-    symbols_to_plot = [t for t in TICKERS_MASTER if t['ticker'] != benchmark_ticker]
-    plot_tickers = [t['ticker'] for t in symbols_to_plot]
-    all_symbols_to_fetch = plot_tickers + [benchmark_ticker]
+    # --- 3. RRG計算 ---
+    close_data = raw_data['Close'].dropna(how='all')
+    close_data_until_target = close_data[close_data.index.date <= target_date]
+    
+    rs = close_data_until_target[SECTOR_TICKERS].div(close_data_until_target[benchmark_ticker], axis=0)
+    rs_ratio = 100 + ((rs / rs.rolling(window=RS_RATIO_WINDOW).mean()) - 1) * 100
+    rs_momentum = 100 + rs.pct_change(periods=RS_MOMENTUM_CHANGE_PERIOD).rolling(window=RS_MOMENTUM_ROLLING_WINDOW).mean() * 100
+    
+    if rs_ratio.empty or rs_momentum.empty:
+        raise HTTPException(status_code=404, detail="RRGデータを計算できませんでした。")
 
-    price_data = fetch_stock_data(all_symbols_to_fetch, PERIOD)
-    if price_data.empty:
-        return []
+    # --- 4. セクターごとのデータ整形 ---
+    sectors_data = []
+    latest_date = rs_ratio.index[-1]
+    
+    for ticker in SECTOR_TICKERS:
+        ratio_val = rs_ratio[ticker].get(latest_date)
+        momentum_val = rs_momentum[ticker].get(latest_date)
 
-    rrg_df = calculate_rrg_metrics(price_data, benchmark_ticker)
-    if rrg_df.empty:
-        logging.warning("RRG calculation resulted in an empty DataFrame.")
-        return []
+        if pd.isna(ratio_val) or pd.isna(momentum_val):
+            continue
 
-    return format_data_for_frontend(rrg_df, symbols_to_plot)
+        tail_df = pd.concat([rs_ratio[ticker], rs_momentum[ticker]], axis=1).tail(TAIL_LENGTH)
+        tail_data = tail_df.values.tolist()
 
+        weekly_change = 0
+        if len(close_data_until_target) > 5:
+            weekly_change = close_data_until_target[ticker].pct_change(5).iloc[-1] * 100
+
+        latest_price_info = close_data_until_target[ticker].iloc[-2:]
+        price = latest_price_info.iloc[-1] if not latest_price_info.empty else 0
+        change_pct = (latest_price_info.pct_change().iloc[-1] * 100) if len(latest_price_info) > 1 else 0
+
+        sectors_data.append({
+            "name": SECTOR_ETFS.get(ticker, ticker),
+            "ticker": ticker,
+            "price": price,
+            "change_pct": change_pct,
+            "rs_ratio": ratio_val,
+            "rs_momentum": momentum_val,
+            "quadrant": get_quadrant(ratio_val, momentum_val),
+            "weekly_change_pct": weekly_change,
+            "tail": tail_data
+        })
+
+    # --- 5. 最終的なJSONレスポンスを作成 ---
+    return {
+        "benchmark_ohlc": benchmark_ohlc_list,
+        "sectors": sectors_data
+    }
+
+# 静的ファイル配信機能
+app.mount("/", StaticFiles(directory="static", html=True), name="static")

@@ -1,0 +1,184 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f7f6;
+    color: #333;
+}
+
+.dashboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 40px);
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 24px;
+    color: #0056b3;
+}
+
+.controls label, .controls span {
+    margin-right: 10px;
+    font-size: 14px;
+}
+
+.controls select {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    min-width: 150px;
+}
+
+main {
+    display: flex;
+    flex-grow: 1;
+    gap: 20px; /* カラム間のスペース */
+}
+
+/* 左側のチャートエリア */
+.chart-area-left {
+    flex: 3; /* 広いスペースを占める */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* RRGチャートのスタイル */
+.rrg-chart {
+    flex-grow: 1; /* 残りのスペースを全てRRGチャートが使う */
+    min-height: 500px; /* 最小高さを設定 */
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #fdfdfd;
+}
+
+/* 右側のテーブルエリア */
+.table-area-right {
+    flex: 2; /* RRGチャートより狭く */
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.candidate-tables {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap; /* 小さい画面で折り返す */
+}
+
+.table-container {
+    flex: 1;
+    min-width: 250px; /* 最小幅 */
+    background-color: #fdfdfd;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+.table-container h2 {
+    font-size: 18px;
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #0056b3;
+    text-align: center;
+}
+
+.full-data-table-container {
+    flex-grow: 1;
+    background-color: #fdfdfd;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.full-data-table-container h2 {
+    font-size: 18px;
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #0056b3;
+}
+
+.table-wrapper {
+    overflow-x: auto; /* テーブルがはみ出た場合にスクロール */
+    overflow-y: auto; /* テーブルの高さが超えた場合にスクロール */
+    flex-grow: 1;
+    max-height: 400px; /* フルデータテーブルの最大高さを設定 */
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+table th, table td {
+    border: 1px solid #eee;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+table th {
+    background-color: #eef;
+    font-weight: bold;
+}
+
+table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+table tbody tr:hover {
+    background-color: #e0f2f7;
+}
+
+/* --- テーブルの追加スタイル --- */
+.sector-cell {
+    display: flex;
+    align-items: center;
+}
+
+.quadrant-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+.price-up {
+    color: #26A69A; /* 緑 */
+    font-weight: bold;
+}
+
+.price-down {
+    color: #EF5350; /* 赤 */
+    font-weight: bold;
+}
+
+td, th {
+    white-space: nowrap; /* テーブルのテキストが折り返さないようにする */
+}
+
+/* ローディングオーバーレイ */
+.dashboard-container {
+    transition: opacity 0.3s ease-in-out;
+}
