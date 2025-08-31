@@ -21,7 +21,36 @@
 
         <main>
             <div class="chart-area-left">
-                <div id="date-slider-container" class="date-slider-container"></div>
+                <!-- データエクスポートパネル -->
+                <div class="export-panel">
+                    <h3>データエクスポート</h3>
+                    <div class="export-buttons">
+                        <button id="export-csv-btn" class="export-btn">
+                            <span>📊</span> CSV ダウンロード
+                        </button>
+                        <button id="export-json-btn" class="export-btn">
+                            <span>📄</span> JSON ダウンロード
+                        </button>
+                    </div>
+                    <div class="export-info">
+                        <small>過去60日分の全セクターデータをダウンロード</small>
+                    </div>
+                </div>
+                
+                <!-- 新しいコントロールパネル -->
+                <div class="slider-controls">
+                    <div class="slider-group">
+                        <label for="time-axis-slider">日付選択:</label>
+                        <input type="range" id="time-axis-slider" min="0" max="60" value="60" class="slider">
+                        <span id="time-axis-value" class="slider-value">2025-01-01</span>
+                    </div>
+                    <div class="slider-group">
+                        <label for="tail-length-slider">軌跡長さ:</label>
+                        <input type="range" id="tail-length-slider" min="1" max="20" value="5" class="slider">
+                        <span id="tail-length-value" class="slider-value">5日</span>
+                    </div>
+                </div>
+
                 <div id="rrg-chart" class="rrg-chart"></div>
             </div>
 

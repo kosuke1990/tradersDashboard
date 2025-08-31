@@ -17,6 +17,7 @@ body {
     flex-direction: column;
     height: calc(100vh - 40px);
     box-sizing: border-box;
+    transition: opacity 0.3s ease-in-out;
 }
 
 header {
@@ -53,6 +54,23 @@ header h1 {
     min-width: 150px;
 }
 
+.controls button {
+    padding: 8px 15px;
+    border: 1px solid #0056b3;
+    background-color: #fff;
+    color: #0056b3;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-left: 20px;
+    transition: all 0.2s ease;
+}
+
+.controls button:hover {
+    background-color: #0056b3;
+    color: #fff;
+}
+
 main {
     display: flex;
     flex-grow: 1;
@@ -72,6 +90,154 @@ main {
 .date-slider-container {
     height: 80px;
     flex-shrink: 0;
+}
+
+/* エクスポートパネル */
+.export-panel {
+    background-color: #fdfdfd;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 20px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.export-panel h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: #0056b3;
+    font-weight: bold;
+}
+
+.export-buttons {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.export-btn {
+    flex: 1;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #0056b3 0%, #007bff 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 86, 179, 0.2);
+}
+
+.export-btn:hover {
+    background: linear-gradient(135deg, #003d82 0%, #0056b3 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 86, 179, 0.3);
+}
+
+.export-btn:active {
+    transform: translateY(0);
+}
+
+.export-btn span {
+    font-size: 16px;
+}
+
+.export-info {
+    text-align: center;
+    color: #666;
+}
+
+.export-info small {
+    font-size: 12px;
+}
+
+/* 新しいスライダーコントロール */
+.slider-controls {
+    background-color: #fdfdfd;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    display: flex;
+    gap: 30px;
+    align-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.slider-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.slider-group label {
+    font-size: 14px;
+    font-weight: bold;
+    color: #0056b3;
+    min-width: 80px;
+}
+
+.slider {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: #ddd;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #0056b3;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.slider::-webkit-slider-thumb:hover {
+    background: #003d82;
+    transform: scale(1.1);
+}
+
+.slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #0056b3;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.slider::-moz-range-thumb:hover {
+    background: #003d82;
+    transform: scale(1.1);
+}
+
+.slider-value {
+    font-size: 13px;
+    font-weight: bold;
+    color: #333;
+    min-width: 60px;
+    text-align: center;
+    background-color: #f0f4f8;
+    padding: 4px 8px;
+    border-radius: 3px;
+    border: 1px solid #e0e6ed;
 }
 
 /* RRGチャートのスタイル */
@@ -192,23 +358,43 @@ td, th {
     white-space: nowrap;
 }
 
-.dashboard-container {
-    transition: opacity 0.3s ease-in-out;
+/* レスポンシブ対応 */
+@media (max-width: 1200px) {
+    .slider-controls {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+    
+    .slider-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 5px;
+    }
+    
+    .slider-group label {
+        min-width: auto;
+        text-align: left;
+    }
 }
 
-.controls button {
-    padding: 8px 15px;
-    border: 1px solid #0056b3;
-    background-color: #fff;
-    color: #0056b3;
-    border-radius: 4px;
-    font-size: 14px;
-    cursor: pointer;
-    margin-left: 20px;
-    transition: all 0.2s ease;
-}
-
-.controls button:hover {
-    background-color: #0056b3;
-    color: #fff;
+@media (max-width: 768px) {
+    main {
+        flex-direction: column;
+    }
+    
+    .chart-area-left {
+        flex: none;
+        height: 60vh;
+    }
+    
+    .table-area-right {
+        flex: none;
+        height: 40vh;
+    }
+    
+    .candidate-tables {
+        flex-direction: column;
+        gap: 10px;
+    }
 }
