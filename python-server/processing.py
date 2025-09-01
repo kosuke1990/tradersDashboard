@@ -61,18 +61,39 @@ def calculate_dashboard_data(
     except ValueError:
         raise HTTPException(status_code=400, detail="日付のフォーマットは YYYY-MM-DD にしてください")
 
-    # --- 1. データ取得 ---
+    # --- 1. データ取得（修正版）---
     all_tickers_to_fetch = SECTOR_TICKERS + list(BENCHMARK_TICKERS.keys())
-    end_date_for_fetch = min(target_date + timedelta(days=1), datetime.now().date())
     
-    raw_data = yfinance.download(
-        all_tickers_to_fetch,
-        period=PERIOD,
-        end=end_date_for_fetch,
-        progress=False
-    )
+    try:
+        logging.info("yfinanceでデータを取得中...")
+        # endパラメータを使用せず、periodのみでデータ取得
+        raw_data = yfinance.download(
+            all_tickers_to_fetch,
+            period=PERIOD,  # "1y"
+            progress=False
+        )
+        logging.info(f"データ取得完了: {len(raw_data)} 日分")
+        
+    except Exception as e:
+        logging.error(f"yfinanceでのデータ取得エラー: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"データ取得エラー: {str(e)}")
+    
     if raw_data.empty:
-        raise HTTPException(status_code=404, detail="指定された期間の株価データを取得できませんでした。")
+        raise HTTPException(status_code=404, detail="株価データを取得できませんでした。")
+
+    # データの利用可能範囲をチェック
+    available_dates = raw_data.index.date
+    latest_available = max(available_dates)
+    earliest_available = min(available_dates)
+    logging.info(f"取得データの期間: {earliest_available} 〜 {latest_available}")
+    
+    # 指定された基準日が利用可能なデータの範囲外の場合は調整
+    if target_date > latest_available:
+        logging.warning(f"指定日 {target_date} は未取得。最新の {latest_available} を使用します。")
+        target_date = latest_available
+    elif target_date < earliest_available:
+        logging.warning(f"指定日 {target_date} は古すぎます。最古の {earliest_available} を使用します。")
+        target_date = earliest_available
 
     # --- 2. ベンチマークのOHLCデータ整形 ---
     benchmark_ohlc_raw = raw_data.loc[:, (slice(None), benchmark_ticker)]
@@ -165,7 +186,8 @@ def calculate_dashboard_data(
         "benchmark_ohlc": benchmark_ohlc_list,
         "historical_data": historical_data,
         "date_range": [d.strftime('%Y-%m-%d') for d in date_range],
-        "target_date": target_date.strftime('%Y-%m-%d')
+        "target_date": target_date.strftime('%Y-%m-%d'),
+        "latest_available_date": latest_available.strftime('%Y-%m-%d')  # デバッグ情報
     }
 
 # 静的ファイル配信機能
