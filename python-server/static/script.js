@@ -488,6 +488,7 @@ function renderTables(elements) {
                         ${sector.name}
                     </div>
                 </td>
+                <td class="ticker-cell">${sector.ticker}</td>
                 <td>${sector.price.toFixed(2)}</td>
                 <td class="${changeClass}">${changeSign}${sector.change_pct.toFixed(2)}%</td>
                 <td>${sector.rs_ratio.toFixed(2)}</td>

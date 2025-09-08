@@ -450,3 +450,10 @@ td, th {
         gap: 10px;
     }
 }
+
+.ticker-cell {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #666;
+    background-color: #f8f9fa;
+}
