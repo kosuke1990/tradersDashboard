@@ -30,7 +30,7 @@ const state = {
 // --- チャートインスタンス ---
 let rrgChart = null;
 
-// --- DOM読み込み完了後にアプリケーションを初期化 ---
+// DOM読み込み完了後にアプリケーションを初期化
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         benchmarkSelect: document.getElementById('benchmark-select'),
@@ -46,9 +46,15 @@ document.addEventListener('DOMContentLoaded', () => {
         tailLengthSlider: document.getElementById('tail-length-slider'),
         timeAxisValue: document.getElementById('time-axis-value'),
         tailLengthValue: document.getElementById('tail-length-value'),
-        exportCsvBtn: document.getElementById('export-csv-btn'),
-        exportJsonBtn: document.getElementById('export-json-btn'),
+        // ケバブメニュー関連要素
+        exportMenuBtn: document.getElementById('export-menu-btn'),
+        exportDropdown: document.getElementById('export-dropdown'),
     };
+
+    // デバッグ情報
+    console.log('Elements found:', Object.keys(elements).map(key => ({
+        [key]: !!elements[key]
+    })));
 
     initializeBenchmarkSelector(elements);
     initializeCharts(elements);
@@ -58,6 +64,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeBenchmarkSelector(elements) {
+    if (!elements.benchmarkSelect) {
+        console.error('benchmark-select element not found');
+        return;
+    }
     const select = elements.benchmarkSelect;
     Object.entries(BENCHMARKS).forEach(([ticker, name]) => {
         const option = new Option(`${name} (${ticker})`, ticker);
@@ -67,6 +77,10 @@ function initializeBenchmarkSelector(elements) {
 }
 
 function initializeCharts(elements) {
+    if (!elements.rrgChartContainer) {
+        console.error('rrg-chart container not found');
+        return;
+    }
     rrgChart = echarts.init(elements.rrgChartContainer);
 
     window.addEventListener('resize', () => {
@@ -86,52 +100,87 @@ function initializeSliders(elements) {
     // 軌跡長さスライダーの初期化
     if (elements.tailLengthSlider) {
         elements.tailLengthSlider.value = state.tailLength;
-        elements.tailLengthValue.textContent = `${state.tailLength}日`;
+        if (elements.tailLengthValue) {
+            elements.tailLengthValue.textContent = `${state.tailLength}日`;
+        }
         
         elements.tailLengthSlider.addEventListener('input', (e) => {
             state.tailLength = parseInt(e.target.value);
-            elements.tailLengthValue.textContent = `${state.tailLength}日`;
+            if (elements.tailLengthValue) {
+                elements.tailLengthValue.textContent = `${state.tailLength}日`;
+            }
             renderRRGChart(elements); // RRGチャートのみ再描画
         });
     }
 }
 
+// イベントリスナーの追加（安全版）
 function addEventListeners(elements) {
-    elements.benchmarkSelect.addEventListener('change', (e) => {
-        state.benchmark = e.target.value;
-        state.visibleSectors.clear(); 
-        fetchDashboardData(elements);
-    });
+    // 必須要素のnullチェック
+    if (elements.benchmarkSelect) {
+        elements.benchmarkSelect.addEventListener('change', (e) => {
+            state.benchmark = e.target.value;
+            state.visibleSectors.clear(); 
+            fetchDashboardData(elements);
+        });
+    } else {
+        console.error('benchmarkSelect element is null');
+    }
 
-    // 従来の日付スライダーは無効化
-    // dateSliderChart.on('datazoom', (params) => {
-    //     // コメントアウト
-    // });
-
-    elements.fullDataTableBody.addEventListener('change', (e) => {
-        if (e.target.type === 'checkbox') {
-            const ticker = e.target.dataset.ticker;
-            if (e.target.checked) {
-                state.visibleSectors.add(ticker);
-            } else {
-                state.visibleSectors.delete(ticker);
+    if (elements.fullDataTableBody) {
+        elements.fullDataTableBody.addEventListener('change', (e) => {
+            if (e.target.type === 'checkbox') {
+                const ticker = e.target.dataset.ticker;
+                if (e.target.checked) {
+                    state.visibleSectors.add(ticker);
+                } else {
+                    state.visibleSectors.delete(ticker);
+                }
+                renderRRGChart(elements);
             }
-            renderRRGChart(elements);
-        }
-    });
+        });
+    } else {
+        console.error('fullDataTableBody element is null');
+    }
 
-    elements.resetZoomBtn.addEventListener('click', () => {
-        rrgChart?.dispatchAction({ type: 'restore' });
-    });
+    if (elements.resetZoomBtn) {
+        elements.resetZoomBtn.addEventListener('click', () => {
+            rrgChart?.dispatchAction({ type: 'restore' });
+        });
+    } else {
+        console.error('resetZoomBtn element is null');
+    }
 
-    // エクスポート機能のイベントリスナー
-    elements.exportCsvBtn.addEventListener('click', () => {
-        exportData('csv');
-    });
-
-    elements.exportJsonBtn.addEventListener('click', () => {
-        exportData('json');
-    });
+    // ケバブメニューのイベントリスナー（安全版）
+    if (elements.exportMenuBtn && elements.exportDropdown) {
+        console.log('ケバブメニューのイベントリスナーを設定');
+        
+        // メニューの開閉
+        elements.exportMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            elements.exportDropdown.classList.toggle('show');
+        });
+        
+        // メニュー項目のクリック
+        elements.exportDropdown.addEventListener('click', (e) => {
+            const item = e.target.closest('.export-dropdown-item');
+            if (item) {
+                const format = item.dataset.format;
+                exportData(format);
+                elements.exportDropdown.classList.remove('show');
+            }
+        });
+        
+        // 外側をクリックしたらメニューを閉じる
+        document.addEventListener('click', () => {
+            elements.exportDropdown.classList.remove('show');
+        });
+    } else {
+        console.warn('ケバブメニュー要素が見つかりません:', {
+            exportMenuBtn: !!elements.exportMenuBtn,
+            exportDropdown: !!elements.exportDropdown
+        });
+    }
 }
 
 async function fetchDashboardData(elements) {
@@ -206,12 +255,16 @@ function updateCurrentDisplay(elements) {
 }
 
 function renderAll(elements) {
-    elements.dateDisplay.textContent = `基準日: ${getCurrentDateString()}`;
+    if (elements.dateDisplay) {
+        elements.dateDisplay.textContent = `基準日: ${getCurrentDateString()}`;
+    }
     renderRRGChart(elements);
     renderTables(elements);
 }
 
 function renderRRGChart(elements) {
+    if (!rrgChart) return;
+    
     const allSectors = getCurrentSectorData();
     if (!allSectors || allSectors.length === 0) {
         rrgChart.clear();
@@ -402,7 +455,7 @@ function renderRRGChart(elements) {
 
 function renderTables(elements) {
     const sectors = getCurrentSectorData();
-    if (!sectors) return;
+    if (!sectors || !elements.fullDataTableBody || !elements.longCandidateTable || !elements.shortCandidateTable) return;
 
     const longCandidates = [];
     const shortCandidates = [];
@@ -463,8 +516,10 @@ function renderTables(elements) {
 
 function setLoadingState(elements, isLoading) {
     state.isLoading = isLoading;
-    elements.dashboardContainer.style.opacity = isLoading ? '0.5' : '1';
-    elements.dashboardContainer.style.pointerEvents = isLoading ? 'none' : 'auto';
+    if (elements.dashboardContainer) {
+        elements.dashboardContainer.style.opacity = isLoading ? '0.5' : '1';
+        elements.dashboardContainer.style.pointerEvents = isLoading ? 'none' : 'auto';
+    }
 
     if (isLoading) {
         rrgChart?.showLoading();

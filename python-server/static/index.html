@@ -21,19 +21,32 @@
 
         <main>
             <div class="chart-area-left">
-                <!-- データエクスポートパネル -->
+                <!-- データエクスポートパネル（ケバブメニュー形式） -->
                 <div class="export-panel">
-                    <h3>データエクスポート</h3>
-                    <div class="export-buttons">
-                        <button id="export-csv-btn" class="export-btn">
-                            <span>📊</span> CSV ダウンロード
-                        </button>
-                        <button id="export-json-btn" class="export-btn">
-                            <span>📄</span> JSON ダウンロード
-                        </button>
+                    <div>
+                        <h3>データエクスポート</h3>
+                        <p class="export-info">過去60日分の全セクターデータ</p>
                     </div>
-                    <div class="export-info">
-                        <small>過去60日分の全セクターデータをダウンロード</small>
+                    
+                    <div class="export-menu">
+                        <button class="kebab-button" id="export-menu-btn">
+                            <div class="kebab-dots">
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                            </div>
+                        </button>
+                        
+                        <div class="export-dropdown" id="export-dropdown">
+                            <button class="export-dropdown-item" data-format="csv">
+                                <span>📊</span>
+                                CSV ダウンロード
+                            </button>
+                            <button class="export-dropdown-item" data-format="json">
+                                <span>📄</span>
+                                JSON ダウンロード
+                            </button>
+                        </div>
                     </div>
                 </div>
                 

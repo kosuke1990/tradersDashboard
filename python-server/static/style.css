@@ -87,73 +87,125 @@ main {
     min-width: 0;
 }
 
-.date-slider-container {
-    height: 80px;
-    flex-shrink: 0;
-}
-
-/* エクスポートパネル */
+/* エクスポートパネル（ケバブメニュー形式） */
 .export-panel {
     background-color: #fdfdfd;
     border: 1px solid #ddd;
     border-radius: 4px;
-    padding: 20px;
+    padding: 12px 15px;
     flex-shrink: 0;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .export-panel h3 {
-    margin: 0 0 15px 0;
-    font-size: 16px;
+    margin: 0 0 4px 0;
+    font-size: 14px;
     color: #0056b3;
     font-weight: bold;
 }
 
-.export-buttons {
-    display: flex;
-    gap: 15px;
-    margin-bottom: 10px;
+.export-info {
+    font-size: 11px;
+    color: #666;
+    margin: 0;
 }
 
-.export-btn {
-    flex: 1;
-    padding: 12px 20px;
-    background: linear-gradient(135deg, #0056b3 0%, #007bff 100%);
-    color: white;
+/* ケバブメニューのスタイル */
+.export-menu {
+    position: relative;
+    display: inline-block;
+}
+
+.kebab-button {
+    background: none;
     border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: bold;
     cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0, 86, 179, 0.2);
 }
 
-.export-btn:hover {
-    background: linear-gradient(135deg, #003d82 0%, #0056b3 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 86, 179, 0.3);
+.kebab-button:hover {
+    background-color: #f0f4f8;
 }
 
-.export-btn:active {
+.kebab-dots {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.dot {
+    width: 4px;
+    height: 4px;
+    background-color: #666;
+    border-radius: 50%;
+}
+
+.kebab-button:hover .dot {
+    background-color: #0056b3;
+}
+
+/* ドロップダウンメニュー */
+.export-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 160px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+}
+
+.export-dropdown.show {
+    opacity: 1;
+    visibility: visible;
     transform: translateY(0);
 }
 
-.export-btn span {
-    font-size: 16px;
+.export-dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-size: 13px;
+    color: #333;
+    transition: background-color 0.2s ease;
+    gap: 8px;
 }
 
-.export-info {
-    text-align: center;
-    color: #666;
+.export-dropdown-item:hover {
+    background-color: #f0f4f8;
 }
 
-.export-info small {
-    font-size: 12px;
+.export-dropdown-item:first-child {
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+}
+
+.export-dropdown-item:last-child {
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+.export-dropdown-item span {
+    font-size: 14px;
 }
 
 /* 新しいスライダーコントロール */
