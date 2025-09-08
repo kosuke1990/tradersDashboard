@@ -19,86 +19,168 @@
             </div>
         </header>
 
-        <main>
-            <div class="chart-area-left">
-                <!-- データエクスポートパネル（ケバブメニュー形式） -->
-                <div class="export-panel">
-                    <div>
-                        <h3>データエクスポート</h3>
-                        <p class="export-info">過去60日分の全セクターデータ</p>
+        <!-- タブナビゲーション -->
+        <nav class="tab-navigation">
+            <button class="tab-button active" data-tab="rrg-tab">RRG分析</button>
+            <button class="tab-button" data-tab="constituents-tab">構成銘柄分析</button>
+        </nav>
+
+        <!-- RRG分析タブ -->
+        <div id="rrg-tab" class="tab-content active">
+            <main>
+                <div class="chart-area-left">
+                    <!-- データエクスポートパネル（ケバブメニュー形式） -->
+                    <div class="export-panel">
+                        <div>
+                            <h3>データエクスポート</h3>
+                            <p class="export-info">過去60日分の全セクターデータ</p>
+                        </div>
+                        
+                        <div class="export-menu">
+                            <button class="kebab-button" id="export-menu-btn">
+                                <div class="kebab-dots">
+                                    <div class="dot"></div>
+                                    <div class="dot"></div>
+                                    <div class="dot"></div>
+                                </div>
+                            </button>
+                            
+                            <div class="export-dropdown" id="export-dropdown">
+                                <button class="export-dropdown-item" data-format="csv">
+                                    <span>📊</span>
+                                    CSV ダウンロード
+                                </button>
+                                <button class="export-dropdown-item" data-format="json">
+                                    <span>📄</span>
+                                    JSON ダウンロード
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="export-menu">
-                        <button class="kebab-button" id="export-menu-btn">
-                            <div class="kebab-dots">
-                                <div class="dot"></div>
-                                <div class="dot"></div>
-                                <div class="dot"></div>
-                            </div>
-                        </button>
-                        
-                        <div class="export-dropdown" id="export-dropdown">
-                            <button class="export-dropdown-item" data-format="csv">
-                                <span>📊</span>
-                                CSV ダウンロード
-                            </button>
-                            <button class="export-dropdown-item" data-format="json">
-                                <span>📄</span>
-                                JSON ダウンロード
-                            </button>
+                    <!-- RRGコントロールパネル -->
+                    <div class="slider-controls">
+                        <div class="slider-group">
+                            <label for="time-axis-slider">日付選択:</label>
+                            <input type="range" id="time-axis-slider" min="0" max="60" value="60" class="slider">
+                            <span id="time-axis-value" class="slider-value">2025-01-01</span>
+                        </div>
+                        <div class="slider-group">
+                            <label for="tail-length-slider">軌跡長さ:</label>
+                            <input type="range" id="tail-length-slider" min="1" max="20" value="5" class="slider">
+                            <span id="tail-length-value" class="slider-value">5日</span>
+                        </div>
+                    </div>
+
+                    <div id="rrg-chart" class="rrg-chart"></div>
+                </div>
+
+                <div class="table-area-right">
+                    <div class="candidate-tables">
+                        <div class="table-container long-candidates">
+                            <h2>ロング候補<br>(Improving/Leading)</h2>
+                            <table id="long-candidate-table"></table>
+                        </div>
+                        <div class="table-container short-candidates">
+                            <h2>ショート候補<br>(Weakening/Lagging)</h2>
+                            <table id="short-candidate-table"></table>
+                        </div>
+                    </div>
+
+                    <div class="full-data-table-container">
+                        <h2>全セクターデータ一覧</h2>
+                        <div class="table-wrapper">
+                            <table id="full-data-table">
+                                <thead>
+                                    <tr>
+                                        <th>表示</th>
+                                        <th>セクター名</th>
+                                        <th>ティッカー</th>
+                                        <th>価格</th>
+                                        <th>前日比</th>
+                                        <th>RS-Ratio</th>
+                                        <th>RS-Momentum</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="full-data-table-body"></tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
-                
-                <!-- 新しいコントロールパネル -->
-                <div class="slider-controls">
-                    <div class="slider-group">
-                        <label for="time-axis-slider">日付選択:</label>
-                        <input type="range" id="time-axis-slider" min="0" max="60" value="60" class="slider">
-                        <span id="time-axis-value" class="slider-value">2025-01-01</span>
+            </main>
+        </div>
+
+        <!-- 構成銘柄分析タブ -->
+        <div id="constituents-tab" class="tab-content">
+            <div class="constituents-layout">
+                <!-- セクター選択パネル -->
+                <div class="sector-selection-panel">
+                    <h3>セクター選択</h3>
+                    <div class="sector-buttons" id="sector-buttons">
+                        <!-- セクターボタンがJavaScriptで動的生成される -->
                     </div>
-                    <div class="slider-group">
-                        <label for="tail-length-slider">軌跡長さ:</label>
-                        <input type="range" id="tail-length-slider" min="1" max="20" value="5" class="slider">
-                        <span id="tail-length-value" class="slider-value">5日</span>
+                    
+                    <div class="analysis-controls">
+                        <div class="control-group">
+                            <label for="period-select">分析期間:</label>
+                            <select id="period-select">
+                                <option value="1d">1日</option>
+                                <option value="5d" selected>5日</option>
+                                <option value="1mo">1ヶ月</option>
+                                <option value="3mo">3ヶ月</option>
+                                <option value="ytd">年初来</option>
+                                <option value="1y">過去1年</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label for="sort-select">ソート:</label>
+                            <select id="sort-select">
+                                <option value="change_desc">騰落率(降順)</option>
+                                <option value="change_asc">騰落率(昇順)</option>
+                                <option value="name_asc">銘柄名(昇順)</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
-                <div id="rrg-chart" class="rrg-chart"></div>
+                <!-- チャートエリア -->
+                <div class="constituents-chart-area">
+                    <div class="chart-header">
+                        <h3 id="selected-sector-title">セクターを選択してください</h3>
+                        <div class="chart-stats" id="chart-stats" style="display: none;">
+                            <span class="stat-item">平均: <span id="avg-change">-</span>%</span>
+                            <span class="stat-item">最大: <span id="max-change">-</span>%</span>
+                            <span class="stat-item">最小: <span id="min-change">-</span>%</span>
+                        </div>
+                    </div>
+                    
+                    <div id="constituents-chart" class="constituents-chart"></div>
+                    
+                    <!-- 構成銘柄テーブル -->
+                    <div class="constituents-table-container">
+                        <h4>構成銘柄詳細</h4>
+                        <div class="table-wrapper">
+                            <table id="constituents-table">
+                                <thead>
+                                    <tr>
+                                        <th>銘柄コード</th>
+                                        <th>銘柄名</th>
+                                        <th>現在価格</th>
+                                        <th>騰落率</th>
+                                        <th>出来高</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="constituents-table-body">
+                                    <tr>
+                                        <td colspan="5" class="no-data">セクターを選択してください</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
-
-            <div class="table-area-right">
-                <div class="candidate-tables">
-                    <div class="table-container long-candidates">
-                        <h2>ロング候補<br>(Improving/Leading)</h2>
-                        <table id="long-candidate-table"></table>
-                    </div>
-                    <div class="table-container short-candidates">
-                        <h2>ショート候補<br>(Weakening/Lagging)</h2>
-                        <table id="short-candidate-table"></table>
-                    </div>
-                </div>
-
-                <div class="full-data-table-container">
-                    <h2>全セクターデータ一覧</h2>
-                    <div class="table-wrapper">
-                        <table id="full-data-table">
-                            <thead>
-                                <tr>
-                                    <th>表示</th>
-                                    <th>セクター名</th>
-                                    <th>価格</th>
-                                    <th>前日比</th>
-                                    <th>RS-Ratio</th>
-                                    <th>RS-Momentum</th>
-                                </tr>
-                            </thead>
-                            <tbody id="full-data-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </main>
+        </div>
     </div>
 
     <script src="script.js"></script>

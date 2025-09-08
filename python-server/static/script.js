@@ -1,10 +1,12 @@
 /**
  * Enhanced Interactive Sector Rotation Dashboard
- * With Time-axis and Tail-length Sliders
+ * With Tab Navigation and Constituent Analysis
  */
 
 // --- グローバル設定 ---
 const API_ENDPOINT = '/calculate';
+const CONSTITUENTS_ENDPOINT = '/constituents';
+const SECTOR_LIST_ENDPOINT = '/sector_list';
 const BENCHMARKS = {
     '1306.T': 'TOPIX ETF',
     '1321.T': '日経225 ETF'
@@ -22,17 +24,24 @@ const state = {
     dashboardData: { benchmark_ohlc: [], historical_data: {}, date_range: [] },
     visibleSectors: new Set(),
     isLoading: true,
-    // 新しい状態
     currentDateIndex: 0,
     tailLength: 5,
+    // 構成銘柄分析用の状態
+    activeTab: 'rrg-tab',
+    selectedSector: null,
+    sectorList: [],
+    constituentsData: null,
+    analysisPeriod: '5d'
 };
 
 // --- チャートインスタンス ---
 let rrgChart = null;
+let constituentsChart = null;
 
 // DOM読み込み完了後にアプリケーションを初期化
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
+        // 既存の要素
         benchmarkSelect: document.getElementById('benchmark-select'),
         dateDisplay: document.getElementById('date-display'),
         rrgChartContainer: document.getElementById('rrg-chart'),
@@ -41,17 +50,30 @@ document.addEventListener('DOMContentLoaded', () => {
         fullDataTableBody: document.getElementById('full-data-table-body'),
         dashboardContainer: document.querySelector('.dashboard-container'),
         resetZoomBtn: document.getElementById('reset-zoom-btn'),
-        // 新しい要素
         timeAxisSlider: document.getElementById('time-axis-slider'),
         tailLengthSlider: document.getElementById('tail-length-slider'),
         timeAxisValue: document.getElementById('time-axis-value'),
         tailLengthValue: document.getElementById('tail-length-value'),
-        // ケバブメニュー関連要素
         exportMenuBtn: document.getElementById('export-menu-btn'),
         exportDropdown: document.getElementById('export-dropdown'),
+        
+        // 新しいタブ関連要素
+        tabButtons: document.querySelectorAll('.tab-button'),
+        tabContents: document.querySelectorAll('.tab-content'),
+        
+        // 構成銘柄分析用要素
+        sectorButtons: document.getElementById('sector-buttons'),
+        periodSelect: document.getElementById('period-select'),
+        sortSelect: document.getElementById('sort-select'),
+        constituentsChartContainer: document.getElementById('constituents-chart'),
+        selectedSectorTitle: document.getElementById('selected-sector-title'),
+        chartStats: document.getElementById('chart-stats'),
+        avgChange: document.getElementById('avg-change'),
+        maxChange: document.getElementById('max-change'),
+        minChange: document.getElementById('min-change'),
+        constituentsTableBody: document.getElementById('constituents-table-body')
     };
 
-    // デバッグ情報
     console.log('Elements found:', Object.keys(elements).map(key => ({
         [key]: !!elements[key]
     })));
@@ -59,8 +81,10 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeBenchmarkSelector(elements);
     initializeCharts(elements);
     initializeSliders(elements);
+    initializeTabs(elements);
     addEventListeners(elements);
     fetchDashboardData(elements);
+    fetchSectorList(elements);
 });
 
 function initializeBenchmarkSelector(elements) {
@@ -77,19 +101,24 @@ function initializeBenchmarkSelector(elements) {
 }
 
 function initializeCharts(elements) {
-    if (!elements.rrgChartContainer) {
-        console.error('rrg-chart container not found');
-        return;
+    // RRGチャート
+    if (elements.rrgChartContainer) {
+        rrgChart = echarts.init(elements.rrgChartContainer);
     }
-    rrgChart = echarts.init(elements.rrgChartContainer);
+    
+    // 構成銘柄チャート
+    if (elements.constituentsChartContainer) {
+        constituentsChart = echarts.init(elements.constituentsChartContainer);
+    }
 
     window.addEventListener('resize', () => {
         rrgChart?.resize();
+        constituentsChart?.resize();
     });
 }
 
 function initializeSliders(elements) {
-    // 時間軸スライダーの初期化（データ取得後に設定）
+    // 時間軸スライダーの初期化
     if (elements.timeAxisSlider) {
         elements.timeAxisSlider.addEventListener('input', (e) => {
             state.currentDateIndex = parseInt(e.target.value);
@@ -109,22 +138,283 @@ function initializeSliders(elements) {
             if (elements.tailLengthValue) {
                 elements.tailLengthValue.textContent = `${state.tailLength}日`;
             }
-            renderRRGChart(elements); // RRGチャートのみ再描画
+            if (state.activeTab === 'rrg-tab') {
+                renderRRGChart(elements);
+            }
         });
     }
 }
 
-// イベントリスナーの追加（安全版）
+function initializeTabs(elements) {
+    // タブボタンのクリックイベント
+    elements.tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const targetTab = button.dataset.tab;
+            switchTab(targetTab, elements);
+        });
+    });
+    
+    // 分析期間選択
+    if (elements.periodSelect) {
+        elements.periodSelect.value = state.analysisPeriod;
+        elements.periodSelect.addEventListener('change', (e) => {
+            state.analysisPeriod = e.target.value;
+            if (state.selectedSector) {
+                fetchConstituentsData(state.selectedSector, elements);
+            }
+        });
+    }
+    
+    // ソート選択
+    if (elements.sortSelect) {
+        elements.sortSelect.addEventListener('change', () => {
+            renderConstituentsTable(elements);
+        });
+    }
+}
+
+function switchTab(tabId, elements) {
+    // タブボタンの状態更新
+    elements.tabButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabId);
+    });
+    
+    // タブコンテンツの表示切り替え
+    elements.tabContents.forEach(content => {
+        content.classList.toggle('active', content.id === tabId);
+    });
+    
+    state.activeTab = tabId;
+    
+    // チャートのリサイズ
+    setTimeout(() => {
+        if (tabId === 'rrg-tab') {
+            rrgChart?.resize();
+        } else if (tabId === 'constituents-tab') {
+            constituentsChart?.resize();
+        }
+    }, 100);
+}
+
+async function fetchSectorList(elements) {
+    try {
+        const response = await fetch(SECTOR_LIST_ENDPOINT);
+        if (!response.ok) throw new Error(`サーバーエラー: ${response.status}`);
+        
+        const data = await response.json();
+        state.sectorList = data.sectors;
+        renderSectorButtons(elements);
+    } catch (error) {
+        console.error('セクターリスト取得に失敗:', error);
+    }
+}
+
+function renderSectorButtons(elements) {
+    if (!elements.sectorButtons || !state.sectorList) return;
+    
+    elements.sectorButtons.innerHTML = '';
+    
+    state.sectorList.forEach(sector => {
+        if (sector.has_constituents) {
+            const button = document.createElement('button');
+            button.className = 'sector-button';
+            button.textContent = sector.name;
+            button.dataset.ticker = sector.ticker;
+            
+            button.addEventListener('click', () => {
+                // 既存の選択を解除
+                elements.sectorButtons.querySelectorAll('.sector-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                // 新しい選択
+                button.classList.add('active');
+                state.selectedSector = sector.ticker;
+                fetchConstituentsData(sector.ticker, elements);
+            });
+            
+            elements.sectorButtons.appendChild(button);
+        }
+    });
+}
+
+async function fetchConstituentsData(sectorTicker, elements) {
+    if (!sectorTicker) return;
+    
+    setLoadingState(elements, true);
+    
+    try {
+        const url = `${CONSTITUENTS_ENDPOINT}?sector_ticker=${sectorTicker}&period=${state.analysisPeriod}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `サーバーエラー: ${response.status}`);
+        }
+        
+        state.constituentsData = await response.json();
+        renderConstituentsAnalysis(elements);
+    } catch (error) {
+        console.error('構成銘柄データ取得に失敗:', error);
+        alert(`データ取得に失敗しました: ${error.message}`);
+    } finally {
+        setLoadingState(elements, false);
+    }
+}
+
+function renderConstituentsAnalysis(elements) {
+    if (!state.constituentsData) return;
+    
+    // タイトル更新
+    if (elements.selectedSectorTitle) {
+        elements.selectedSectorTitle.textContent = `${state.constituentsData.sector_name} 構成銘柄分析`;
+    }
+    
+    // 統計情報更新
+    if (elements.chartStats) {
+        elements.chartStats.style.display = 'flex';
+        if (elements.avgChange) elements.avgChange.textContent = state.constituentsData.stats.avg_change;
+        if (elements.maxChange) elements.maxChange.textContent = state.constituentsData.stats.max_change;
+        if (elements.minChange) elements.minChange.textContent = state.constituentsData.stats.min_change;
+    }
+    
+    renderConstituentsChart(elements);
+    renderConstituentsTable(elements);
+}
+
+function renderConstituentsChart(elements) {
+    if (!constituentsChart || !state.constituentsData) return;
+    
+    const data = state.constituentsData.constituents;
+    
+    // 騰落率でソート
+    const sortedData = [...data].sort((a, b) => b.change_pct - a.change_pct);
+    
+    const names = sortedData.map(d => d.name);
+    const changes = sortedData.map(d => d.change_pct);
+    
+    // 期間表示名を取得（APIから返される場合はそれを使用、なければperiodをそのまま使用）
+    const periodDisplay = state.constituentsData.period_display || state.constituentsData.period;
+    
+    const option = {
+        title: {
+            text: `騰落率ランキング (${periodDisplay})`,
+            left: 'center',
+            textStyle: { fontSize: 16, color: '#0056b3' }
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            formatter: function(params) {
+                const param = params[0];
+                const ticker = sortedData[param.dataIndex].ticker;
+                const price = sortedData[param.dataIndex].price;
+                return `<b>${param.name}</b><br/>
+                        ティッカー: ${ticker}<br/>
+                        現在価格: ¥${price.toLocaleString()}<br/>
+                        騰落率 (${periodDisplay}): ${param.value.toFixed(2)}%`;
+            }
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: names,
+            axisLabel: {
+                rotate: 45,
+                fontSize: 10,
+                interval: 0
+            }
+        },
+        yAxis: {
+            type: 'value',
+            name: '騰落率 (%)',
+            axisLabel: {
+                formatter: '{value}%'
+            }
+        },
+        series: [{
+            name: '騰落率',
+            type: 'bar',
+            data: changes,
+            itemStyle: {
+                color: function(params) {
+                    // 年初来・1年の場合は色分けをより明確に
+                    if (state.constituentsData.period === 'ytd' || state.constituentsData.period === '1y') {
+                        if (params.value >= 10) return '#00C851'; // 大幅上昇：明るい緑
+                        if (params.value >= 0) return '#26A69A';  // 上昇：緑
+                        if (params.value >= -10) return '#EF5350'; // 下落：赤
+                        return '#D32F2F'; // 大幅下落：暗い赤
+                    }
+                    // 短期間の場合は従来通り
+                    return params.value >= 0 ? '#26A69A' : '#EF5350';
+                }
+            },
+            label: {
+                show: true,
+                position: function(params) {
+                    // 値が負の場合は下に、正の場合は上に表示
+                    return params.value >= 0 ? 'top' : 'bottom';
+                },
+                formatter: '{c}%',
+                fontSize: 10
+            }
+        }]
+    };
+    
+    constituentsChart.setOption(option, true);
+}
+
+function renderConstituentsTable(elements) {
+    if (!elements.constituentsTableBody || !state.constituentsData) return;
+    
+    const data = [...state.constituentsData.constituents];
+    const sortType = elements.sortSelect ? elements.sortSelect.value : 'change_desc';
+    
+    // ソート処理
+    switch (sortType) {
+        case 'change_desc':
+            data.sort((a, b) => b.change_pct - a.change_pct);
+            break;
+        case 'change_asc':
+            data.sort((a, b) => a.change_pct - b.change_pct);
+            break;
+        case 'name_asc':
+            data.sort((a, b) => a.name.localeCompare(b.name));
+            break;
+    }
+    
+    elements.constituentsTableBody.innerHTML = '';
+    
+    data.forEach(constituent => {
+        const changeClass = constituent.change_pct >= 0 ? 'price-positive' : 'price-negative';
+        const changeSign = constituent.change_pct >= 0 ? '+' : '';
+        
+        const row = `
+            <tr>
+                <td>${constituent.ticker}</td>
+                <td>${constituent.name}</td>
+                <td>¥${constituent.price.toLocaleString()}</td>
+                <td class="${changeClass}">${changeSign}${constituent.change_pct.toFixed(2)}%</td>
+                <td>${constituent.volume.toLocaleString()}</td>
+            </tr>
+        `;
+        elements.constituentsTableBody.insertAdjacentHTML('beforeend', row);
+    });
+}
+
+// イベントリスナーの追加（既存機能を保持）
 function addEventListeners(elements) {
-    // 必須要素のnullチェック
+    // 既存のイベントリスナー
     if (elements.benchmarkSelect) {
         elements.benchmarkSelect.addEventListener('change', (e) => {
             state.benchmark = e.target.value;
             state.visibleSectors.clear(); 
             fetchDashboardData(elements);
         });
-    } else {
-        console.error('benchmarkSelect element is null');
     }
 
     if (elements.fullDataTableBody) {
@@ -136,32 +426,26 @@ function addEventListeners(elements) {
                 } else {
                     state.visibleSectors.delete(ticker);
                 }
-                renderRRGChart(elements);
+                if (state.activeTab === 'rrg-tab') {
+                    renderRRGChart(elements);
+                }
             }
         });
-    } else {
-        console.error('fullDataTableBody element is null');
     }
 
     if (elements.resetZoomBtn) {
         elements.resetZoomBtn.addEventListener('click', () => {
             rrgChart?.dispatchAction({ type: 'restore' });
         });
-    } else {
-        console.error('resetZoomBtn element is null');
     }
 
-    // ケバブメニューのイベントリスナー（安全版）
+    // ケバブメニューのイベントリスナー
     if (elements.exportMenuBtn && elements.exportDropdown) {
-        console.log('ケバブメニューのイベントリスナーを設定');
-        
-        // メニューの開閉
         elements.exportMenuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             elements.exportDropdown.classList.toggle('show');
         });
         
-        // メニュー項目のクリック
         elements.exportDropdown.addEventListener('click', (e) => {
             const item = e.target.closest('.export-dropdown-item');
             if (item) {
@@ -171,18 +455,13 @@ function addEventListeners(elements) {
             }
         });
         
-        // 外側をクリックしたらメニューを閉じる
         document.addEventListener('click', () => {
             elements.exportDropdown.classList.remove('show');
-        });
-    } else {
-        console.warn('ケバブメニュー要素が見つかりません:', {
-            exportMenuBtn: !!elements.exportMenuBtn,
-            exportDropdown: !!elements.exportDropdown
         });
     }
 }
 
+// 既存の関数群（RRG分析関連）
 async function fetchDashboardData(elements) {
     setLoadingState(elements, true);
     try {
@@ -194,13 +473,11 @@ async function fetchDashboardData(elements) {
         }
         state.dashboardData = await response.json();
         
-        // 初期化：最新の日付を選択
         if (state.dashboardData.date_range && state.dashboardData.date_range.length > 0) {
             state.currentDateIndex = state.dashboardData.date_range.length - 1;
             setupTimeAxisSlider(elements);
         }
 
-        // 表示セクターの初期化
         const latestDate = getCurrentDateString();
         if (state.visibleSectors.size === 0 && state.dashboardData.historical_data[latestDate]) {
             state.dashboardData.historical_data[latestDate].sectors.forEach(s => {
@@ -208,7 +485,9 @@ async function fetchDashboardData(elements) {
             });
         }
 
-        renderAll(elements);
+        if (state.activeTab === 'rrg-tab') {
+            renderAll(elements);
+        }
     } catch (error) {
         console.error('データ取得に失敗:', error);
         alert(`データ取得に失敗しました: ${error.message}`);
@@ -223,8 +502,6 @@ function setupTimeAxisSlider(elements) {
         elements.timeAxisSlider.min = 0;
         elements.timeAxisSlider.max = dateRange.length - 1;
         elements.timeAxisSlider.value = state.currentDateIndex;
-        
-        // 日付ラベルの更新
         updateTimeAxisValue(elements);
     }
 }
@@ -250,8 +527,10 @@ function getCurrentSectorData() {
 
 function updateCurrentDisplay(elements) {
     updateTimeAxisValue(elements);
-    renderRRGChart(elements);
-    renderTables(elements);
+    if (state.activeTab === 'rrg-tab') {
+        renderRRGChart(elements);
+        renderTables(elements);
+    }
 }
 
 function renderAll(elements) {
@@ -286,7 +565,6 @@ function renderRRGChart(elements) {
     const series = visibleSectors.flatMap((sector, i) => {
         const color = SERIES_COLORS[i % SERIES_COLORS.length];
         
-        // 軌跡データを tailLength でフィルタリング
         const fullTail = sector.tail || [];
         const filteredTail = fullTail.slice(-state.tailLength);
         
@@ -488,6 +766,7 @@ function renderTables(elements) {
                         ${sector.name}
                     </div>
                 </td>
+                <td class="ticker-cell">${sector.ticker}</td>
                 <td>${sector.price.toFixed(2)}</td>
                 <td class="${changeClass}">${changeSign}${sector.change_pct.toFixed(2)}%</td>
                 <td>${sector.rs_ratio.toFixed(2)}</td>
@@ -523,8 +802,10 @@ function setLoadingState(elements, isLoading) {
 
     if (isLoading) {
         rrgChart?.showLoading();
+        constituentsChart?.showLoading();
     } else {
         rrgChart?.hideLoading();
+        constituentsChart?.hideLoading();
     }
 }
 
@@ -574,13 +855,11 @@ function prepareExportData() {
 function downloadCSV(data, filename) {
     if (data.length === 0) return;
 
-    // CSVヘッダー
     const headers = Object.keys(data[0]);
     const csvContent = [
         headers.join(','),
         ...data.map(row => headers.map(header => {
             const value = row[header];
-            // 数値以外はクォートで囲む
             return typeof value === 'string' ? `"${value}"` : value;
         }).join(','))
     ].join('\n');

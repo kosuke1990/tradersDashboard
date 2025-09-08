@@ -2,6 +2,8 @@ import pandas as pd
 import yfinance
 import json
 import logging
+import csv
+import io
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
 from typing import List, Dict, Any
@@ -33,6 +35,265 @@ SECTOR_ETFS = {
 }
 SECTOR_TICKERS = list(SECTOR_ETFS.keys())
 
+# --- CSVファイルから構成銘柄マップを生成 ---
+def load_constituents_from_csv_file(csv_file_path="tickers_memo.csv"):
+    """CSVファイルから構成銘柄マップを生成"""
+    import os
+    
+    constituents_map = {}
+    
+    try:
+        # CSVファイルの存在確認
+        if not os.path.exists(csv_file_path):
+            logging.warning(f"CSVファイル {csv_file_path} が見つかりません。代替データを使用します。")
+            return load_constituents_from_fallback_data()
+        
+        # CSVファイルを読み込み
+        with open(csv_file_path, 'r', encoding='utf-8') as file:
+            csv_reader = csv.DictReader(file)
+            
+            for row in csv_reader:
+                etf_ticker = row['etf-ticker'].strip() if 'etf-ticker' in row else ''
+                ticker = row['ticker'].strip() if 'ticker' in row else ''
+                name = row['銘柄'].strip() if '銘柄' in row else ''
+                
+                # ティッカーが空の場合はスキップ
+                if not ticker or not name or not etf_ticker:
+                    continue
+                    
+                # ETFティッカーがキーとして存在しない場合は初期化
+                if etf_ticker not in constituents_map:
+                    constituents_map[etf_ticker] = []
+                
+                # 構成銘柄を追加
+                constituents_map[etf_ticker].append({
+                    "ticker": ticker,
+                    "name": name
+                })
+        
+        # 各セクターの銘柄数をログ出力
+        for etf_ticker, constituents in constituents_map.items():
+            sector_name = SECTOR_ETFS.get(etf_ticker, etf_ticker)
+            logging.info(f"{sector_name} ({etf_ticker}): {len(constituents)}銘柄")
+        
+        logging.info(f"CSVファイル {csv_file_path} から構成銘柄データを読み込み完了")
+        return constituents_map
+        
+    except Exception as e:
+        logging.error(f"CSVファイル読み込みエラー: {str(e)}")
+        logging.info("代替データを使用します。")
+        return load_constituents_from_fallback_data()
+
+def load_constituents_from_fallback_data():
+    """フォールバック用の構成銘柄データ（CSVファイルが読み込めない場合）"""
+    csv_data = """etf-ticker,ticker,銘柄
+1617.T,2502,アサヒグループホールディングス
+1617.T,2914,日本たばこ産業
+1617.T,2503,キリンホールディングス
+1617.T,2802,味の素
+1617.T,2269,明治ホールディングス
+1617.T,2587,サントリー食品インターナショナル
+1617.T,2897,日清食品ホールディングス
+1617.T,2264,森永乳業
+1617.T,2875,東洋水産
+1617.T,2501,サッポロホールディングス
+1618.T,5020,ENEOSホールディングス
+1618.T,1605,INPEX
+1618.T,5019,出光興産
+1618.T,5021,コスモエネルギーホールディングス
+1618.T,1662,石油資源開発
+1618.T,1513,日鉄鉱業
+1618.T,4080,ニチレキグループ
+1618.T,1664,K&Oエナジーグループ
+1618.T,1648,住石ホールディングス
+1618.T,5013,ユシロ化学工業
+1618.T,3309,日本コークス工業
+1618.T,5017,富士石油
+1619.T,1925,大和ハウス工業
+1619.T,1928,積水ハウス
+1619.T,1801,大成建設
+1619.T,1802,大林組
+1619.T,1803,清水建設
+1619.T,1812,鹿島建設
+1619.T,5233,太平洋セメント
+1619.T,5201,AGC
+1619.T,5703,日本軽金属ホールディングス
+1619.T,7936,アシックス
+1620.T,4063,信越化学工業
+1620.T,4188,三菱ケミカルグループ
+1620.T,4005,住友化学
+1620.T,3407,旭化成
+1620.T,3402,東レ
+1620.T,4901,富士フイルムホールディングス
+1620.T,4202,ダイセル
+1620.T,4911,資生堂
+1620.T,4452,花王
+1620.T,4183,三井化学
+1621.T,4568,第一三共
+1621.T,4502,武田薬品工業
+1621.T,4519,中外製薬
+1621.T,4503,アステラス製薬
+1621.T,4507,塩野義製薬
+1621.T,4578,大塚ホールディングス
+1621.T,4528,小野薬品工業
+1621.T,4565,そーせいグループ
+1621.T,4543,テルモ
+1621.T,4587,ペプチドリーム
+1622.T,7203,トヨタ自動車
+1622.T,7267,本田技研工業
+1622.T,6902,デンソー
+1622.T,7201,日産自動車
+1622.T,7269,スズキ
+1622.T,6503,三菱電機
+1622.T,7272,ヤマハ発動機
+1622.T,6981,村田製作所
+1622.T,7270,SUBARU
+1622.T,6920,レーザーテック
+1623.T,5401,日本製鉄
+1623.T,5713,住友金属鉱業
+1623.T,5802,住友電気工業
+1623.T,5411,JFEホールディングス
+1623.T,5714,DOWAホールディングス
+1623.T,5706,三井金属鉱業
+1623.T,5406,神戸製鋼所
+1623.T,5801,古河電気工業
+1623.T,5711,三菱マテリアル
+1623.T,5703,日本軽金属ホールディングス
+1624.T,6861,キーエンス
+1624.T,6301,小松製作所
+1624.T,6954,ファナック
+1624.T,6367,ダイキン工業
+1624.T,7751,キヤノン
+1624.T,6326,クボタ
+1624.T,6506,安川電機
+1624.T,6146,ディスコ
+1624.T,6273,SMC
+1624.T,7741,HOYA
+1625.T,6758,ソニーグループ
+1625.T,8035,東京エレクトロン
+1625.T,6501,日立製作所
+1625.T,6981,村田製作所
+1625.T,6702,富士通
+1625.T,6594,ニデック
+1625.T,6762,TDK
+1625.T,7741,HOYA
+1625.T,6861,キーエンス
+1625.T,6971,京セラ
+1626.T,9432,日本電信電話
+1626.T,6098,リクルートホールディングス
+1626.T,9433,KDDI
+1626.T,9984,ソフトバンクグループ
+1626.T,7974,任天堂
+1626.T,4661,オリエンタルランド
+1626.T,9434,ソフトバンク
+1626.T,4755,楽天グループ
+1626.T,4324,電通グループ
+1626.T,3659,ネクソン
+1627.T,9501,東京電力ホールディングス
+1627.T,9503,関西電力
+1627.T,9502,中部電力
+1627.T,9504,中国電力
+1627.T,9506,東北電力
+1627.T,9508,九州電力
+1627.T,9531,東京ガス
+1627.T,9532,大阪ガス
+1627.T,9509,北海道電力
+1627.T,9513,電源開発
+1628.T,9022,東海旅客鉄道
+1628.T,9020,東日本旅客鉄道
+1628.T,9101,日本郵船
+1628.T,9021,西日本旅客鉄道
+1628.T,9104,商船三井
+1628.T,9107,川崎汽船
+1628.T,9064,ヤマトホールディングス
+1628.T,9201,日本航空
+1628.T,9202,ANAホールディングス
+1628.T,9005,東急
+1629.T,8058,三菱商事
+1629.T,8001,伊藤忠商事
+1629.T,8031,三井物産
+1629.T,8002,丸紅
+1629.T,8053,住友商事
+1629.T,8015,豊田通商
+1629.T,8136,サンリオ
+1629.T,2768,双日
+1629.T,3038,神戸物産
+1629.T,9962,ミスミグループ本社
+1630.T,9983,ファーストリテイリング
+1630.T,3382,セブン＆アイ・ホールディングス
+1630.T,8267,イオン
+1630.T,7532,パン・パシフィック・インターナショナルホールディングス
+1630.T,2651,ローソン
+1630.T,3099,三越伊勢丹ホールディングス
+1630.T,7453,良品計画
+1630.T,9843,ニトリホールディングス
+1630.T,3088,マツキヨココカラ＆カンパニー
+1630.T,8233,高島屋
+1631.T,8306,三菱UFJフィナンシャル・グループ
+1631.T,8316,三井住友フィナンシャルグループ
+1631.T,8411,みずほフィナンシャルグループ
+1631.T,8309,三井住友トラスト・ホールディングス
+1631.T,7186,コンコルディア・フィナンシャルグループ
+1631.T,8308,りそなホールディングス
+1631.T,8334,千葉銀行
+1631.T,8354,ふくおかフィナンシャルグループ
+1631.T,8355,静岡銀行
+1631.T,8331,京都銀行
+1632.T,8766,東京海上ホールディングス
+1632.T,8725,MS&ADインシュアランスグループホールディングス
+1632.T,8750,第一生命ホールディングス
+1632.T,8630,SOMPOホールディングス
+1632.T,8591,オリックス
+1632.T,8604,野村ホールディングス
+1632.T,8795,T&Dホールディングス
+1632.T,8473,SBIホールディングス
+1632.T,8697,日本取引所グループ
+1632.T,8601,大和証券グループ本社
+1633.T,8801,三井不動産
+1633.T,8802,三菱地所
+1633.T,8830,住友不動産
+1633.T,1878,大東建託
+1633.T,3003,ヒューリック
+1633.T,3289,東急不動産ホールディングス
+1633.T,3231,野村不動産ホールディングス
+1633.T,8804,東京建物
+1633.T,3288,オープンハウスグループ
+1633.T,3291,飯田グループホールディングス"""
+    
+    constituents_map = {}
+    
+    # CSV文字列をパース
+    csv_reader = csv.DictReader(io.StringIO(csv_data))
+    
+    for row in csv_reader:
+        etf_ticker = row['etf-ticker'].strip()
+        ticker = row['ticker'].strip()
+        name = row['銘柄'].strip()
+        
+        # ティッカーが空の場合はスキップ
+        if not ticker or not name:
+            continue
+            
+        # ETFティッカーがキーとして存在しない場合は初期化
+        if etf_ticker not in constituents_map:
+            constituents_map[etf_ticker] = []
+        
+        # 構成銘柄を追加
+        constituents_map[etf_ticker].append({
+            "ticker": ticker,
+            "name": name
+        })
+    
+    # 各セクターの銘柄数をログ出力
+    for etf_ticker, constituents in constituents_map.items():
+        sector_name = SECTOR_ETFS.get(etf_ticker, etf_ticker)
+        logging.info(f"{sector_name} ({etf_ticker}): {len(constituents)}銘柄")
+    
+    return constituents_map
+
+# CSVファイルから構成銘柄マップを読み込み
+CONSTITUENTS_MAP = load_constituents_from_csv_file()
+
 # ==============================================================================
 # ヘルパー関数 (Helper Functions)
 # ==============================================================================
@@ -47,6 +308,12 @@ def get_quadrant(rs_ratio, rs_momentum):
     if rs_ratio >= 100 and rs_momentum < 100:
         return "Weakening"
     return "N/A"
+
+def format_ticker_for_yfinance(ticker):
+    """日本株のティッカーをyfinance用にフォーマット"""
+    if not ticker.endswith('.T'):
+        return f"{ticker}.T"
+    return ticker
 
 # ==============================================================================
 # APIエンドポイント (API Endpoints)
@@ -188,6 +455,160 @@ def calculate_dashboard_data(
         "date_range": [d.strftime('%Y-%m-%d') for d in date_range],
         "target_date": target_date.strftime('%Y-%m-%d'),
         "latest_available_date": latest_available.strftime('%Y-%m-%d')  # デバッグ情報
+    }
+
+@app.get("/constituents")
+def get_constituents_data(
+    sector_ticker: str = Query(..., description="セクターETFのティッカー (例: 1617.T)"),
+    period: str = Query("5d", description="分析期間 (1d, 5d, 1mo, 3mo, ytd, 1y)")
+):
+    """指定されたセクターの構成銘柄データを取得"""
+    
+    if sector_ticker not in CONSTITUENTS_MAP:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"セクター {sector_ticker} の構成銘柄データが見つかりません。利用可能なセクター: {list(CONSTITUENTS_MAP.keys())}"
+        )
+    
+    constituents = CONSTITUENTS_MAP[sector_ticker]
+    
+    # yfinance用のティッカーリストを作成
+    tickers_for_yf = [format_ticker_for_yfinance(c["ticker"]) for c in constituents]
+    
+    try:
+        logging.info(f"構成銘柄データ取得中: {sector_ticker} ({len(constituents)}銘柄), 期間: {period}")
+        
+        # 期間に応じたyfinanceパラメータの設定
+        yf_params = {}
+        period_display = period
+        
+        if period == "ytd":
+            # 年初来の場合、今年の1月1日から現在まで
+            current_year = datetime.now().year
+            start_date = f"{current_year}-01-01"
+            yf_params = {"start": start_date}
+            period_display = f"{current_year}年初来"
+        elif period == "1y":
+            # 過去1年の場合
+            yf_params = {"period": "1y"}
+            period_display = "過去1年"
+        else:
+            # その他の期間
+            yf_params = {"period": period}
+            period_display = period
+        
+        # 株価データ取得
+        raw_data = yfinance.download(
+            tickers_for_yf,
+            progress=False,
+            **yf_params
+        )
+        
+        if raw_data.empty:
+            raise HTTPException(status_code=404, detail="構成銘柄の株価データを取得できませんでした。")
+        
+        # データ整形
+        result_data = []
+        
+        for i, constituent in enumerate(constituents):
+            ticker = constituent["ticker"]
+            name = constituent["name"]
+            yf_ticker = format_ticker_for_yfinance(ticker)
+            
+            try:
+                if len(tickers_for_yf) == 1:
+                    # 単一銘柄の場合
+                    close_data = raw_data['Close']
+                    volume_data = raw_data['Volume']
+                else:
+                    # 複数銘柄の場合
+                    close_data = raw_data['Close'][yf_ticker]
+                    volume_data = raw_data['Volume'][yf_ticker]
+                
+                close_data = close_data.dropna()
+                volume_data = volume_data.dropna()
+                
+                if len(close_data) < 2:
+                    logging.warning(f"銘柄 {ticker} ({name}) のデータが不十分です")
+                    continue
+                    
+                # 最新価格と変化率を計算
+                latest_price = close_data.iloc[-1]
+                latest_volume = volume_data.iloc[-1] if len(volume_data) > 0 else 0
+                
+                # 期間に応じた変化率計算
+                if period == "1d":
+                    change_pct = close_data.pct_change().iloc[-1] * 100
+                elif period in ["ytd", "1y"]:
+                    # 年初来・過去1年の場合、期間全体での変化率
+                    change_pct = ((latest_price / close_data.iloc[0]) - 1) * 100
+                else:
+                    # その他の期間
+                    change_pct = ((latest_price / close_data.iloc[0]) - 1) * 100
+                
+                result_data.append({
+                    "ticker": ticker,
+                    "name": name,
+                    "price": round(float(latest_price), 2),
+                    "change_pct": round(float(change_pct), 2),
+                    "volume": int(latest_volume) if not pd.isna(latest_volume) else 0,
+                    "chart_data": [
+                        {
+                            "date": date.strftime('%Y-%m-%d'),
+                            "price": round(float(price), 2)
+                        }
+                        for date, price in close_data.items()
+                        if not pd.isna(price)
+                    ]
+                })
+                
+            except Exception as e:
+                logging.warning(f"銘柄 {ticker} ({name}) のデータ取得に失敗: {str(e)}")
+                continue
+        
+        # 統計情報計算
+        if result_data:
+            change_pcts = [d["change_pct"] for d in result_data if not pd.isna(d["change_pct"])]
+            if change_pcts:
+                stats = {
+                    "avg_change": round(sum(change_pcts) / len(change_pcts), 2),
+                    "max_change": round(max(change_pcts), 2),
+                    "min_change": round(min(change_pcts), 2),
+                    "total_constituents": len(result_data)
+                }
+            else:
+                stats = {"avg_change": 0, "max_change": 0, "min_change": 0, "total_constituents": len(result_data)}
+        else:
+            stats = {"avg_change": 0, "max_change": 0, "min_change": 0, "total_constituents": 0}
+        
+        logging.info(f"セクター {sector_ticker}: {len(result_data)}銘柄のデータ取得完了")
+        
+        return {
+            "sector_name": SECTOR_ETFS.get(sector_ticker, sector_ticker),
+            "sector_ticker": sector_ticker,
+            "period": period,
+            "period_display": period_display,  # 表示用の期間名を追加
+            "constituents": result_data,
+            "stats": stats
+        }
+        
+    except Exception as e:
+        logging.error(f"構成銘柄データ取得エラー: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"データ取得エラー: {str(e)}")
+
+@app.get("/sector_list")
+def get_sector_list():
+    """利用可能なセクター一覧を取得"""
+    return {
+        "sectors": [
+            {
+                "ticker": ticker,
+                "name": name,
+                "has_constituents": ticker in CONSTITUENTS_MAP,
+                "constituent_count": len(CONSTITUENTS_MAP.get(ticker, []))
+            }
+            for ticker, name in SECTOR_ETFS.items()
+        ]
     }
 
 # 静的ファイル配信機能
