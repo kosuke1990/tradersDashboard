@@ -1,6 +1,6 @@
 /**
  * Enhanced Interactive Sector Rotation Dashboard
- * With Time-axis and Tail-length Sliders
+ * With Time-axis, Tail-length Sliders and Constituents Performance
  */
 
 // --- グローバル設定 ---
@@ -9,6 +9,81 @@ const BENCHMARKS = {
     '1306.T': 'TOPIX ETF',
     '1321.T': '日経225 ETF'
 };
+
+// セクターとETFのマッピング
+const SECTOR_ETFS = {
+    "1617.T": "食品", "1618.T": "エネ資源", "1619.T": "建設資材",
+    "1620.T": "素材化学", "1621.T": "医薬品", "1622.T": "自動車",
+    "1623.T": "鉄非鉄", "1624.T": "機械", "1625.T": "電機精密",
+    "1626.T": "情通サービス", "1627.T": "電力ガス", "1628.T": "運輸物流",
+    "1629.T": "商社卸売", "1630.T": "小売", "1631.T": "銀行",
+    "1632.T": "金融(銀除)", "1633.T": "不動産"
+};
+
+// 構成銘柄データ（CSVデータを基に）
+const CONSTITUENTS_DATA = {
+    "1617.T": [
+        { ticker: "2502.T", name: "アサヒグループホールディングス" },
+        { ticker: "2914.T", name: "日本たばこ産業" },
+        { ticker: "2503.T", name: "キリンホールディングス" },
+        { ticker: "2802.T", name: "味の素" },
+        { ticker: "2269.T", name: "明治ホールディングス" },
+        { ticker: "2587.T", name: "サントリー食品インターナショナル" },
+        { ticker: "2897.T", name: "日清食品ホールディングス" },
+        { ticker: "2264.T", name: "森永乳業" },
+        { ticker: "2875.T", name: "東洋水産" },
+        { ticker: "2501.T", name: "サッポロホールディングス" }
+    ],
+    "1622.T": [
+        { ticker: "7203.T", name: "トヨタ自動車" },
+        { ticker: "7267.T", name: "本田技研工業" },
+        { ticker: "6902.T", name: "デンソー" },
+        { ticker: "7201.T", name: "日産自動車" },
+        { ticker: "7269.T", name: "スズキ" },
+        { ticker: "6503.T", name: "三菱電機" },
+        { ticker: "7272.T", name: "ヤマハ発動機" },
+        { ticker: "6981.T", name: "村田製作所" },
+        { ticker: "7270.T", name: "SUBARU" },
+        { ticker: "6920.T", name: "レーザーテック" }
+    ],
+    "1630.T": [
+        { ticker: "9983.T", name: "ファーストリテイリング" },
+        { ticker: "3382.T", name: "セブン＆アイ・ホールディングス" },
+        { ticker: "8267.T", name: "イオン" },
+        { ticker: "7532.T", name: "パン・パシフィック・インターナショナルホールディングス" },
+        { ticker: "2651.T", name: "ローソン" },
+        { ticker: "3099.T", name: "三越伊勢丹ホールディングス" },
+        { ticker: "7453.T", name: "良品計画" },
+        { ticker: "9843.T", name: "ニトリホールディングス" },
+        { ticker: "3088.T", name: "マツキヨココカラ＆カンパニー" },
+        { ticker: "8233.T", name: "高島屋" }
+    ],
+    "1631.T": [
+        { ticker: "8306.T", name: "三菱UFJフィナンシャル・グループ" },
+        { ticker: "8316.T", name: "三井住友フィナンシャルグループ" },
+        { ticker: "8411.T", name: "みずほフィナンシャルグループ" },
+        { ticker: "8309.T", name: "三井住友トラスト・ホールディングス" },
+        { ticker: "7186.T", name: "コンコルディア・フィナンシャルグループ" },
+        { ticker: "8308.T", name: "りそなホールディングス" },
+        { ticker: "8334.T", name: "千葉銀行" },
+        { ticker: "8354.T", name: "ふくおかフィナンシャルグループ" },
+        { ticker: "8355.T", name: "静岡銀行" },
+        { ticker: "8331.T", name: "京都銀行" }
+    ],
+    "1633.T": [
+        { ticker: "8801.T", name: "三井不動産" },
+        { ticker: "8802.T", name: "三菱地所" },
+        { ticker: "8830.T", name: "住友不動産" },
+        { ticker: "1878.T", name: "大東建託" },
+        { ticker: "3003.T", name: "ヒューリック" },
+        { ticker: "3289.T", name: "東急不動産ホールディングス" },
+        { ticker: "3231.T", name: "野村不動産ホールディングス" },
+        { ticker: "8804.T", name: "東京建物" },
+        { ticker: "3288.T", name: "オープンハウスグループ" },
+        { ticker: "3291.T", name: "飯田グループホールディングス" }
+    ]
+};
+
 const SERIES_COLORS = [
     '#e6194B', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#42d4f4', 
     '#f032e6', '#bcf60c', '#008080', '#e6beff', '#9A6324', '#800000', 
@@ -25,14 +100,34 @@ const state = {
     // 新しい状態
     currentDateIndex: 0,
     tailLength: 5,
+    activeTab: 'rrg',
+    selectedSector: '1617.T',
+    selectedPeriod: '1m'
 };
 
 // --- チャートインスタンス ---
 let rrgChart = null;
+let performanceChart = null;
 
 // DOM読み込み完了後にアプリケーションを初期化
 document.addEventListener('DOMContentLoaded', () => {
-    const elements = {
+    initializeApp();
+});
+
+function initializeApp() {
+    const elements = getElements();
+    
+    initializeBenchmarkSelector(elements);
+    initializeCharts(elements);
+    initializeSliders(elements);
+    initializeTabs(elements);
+    initializeSectorButtons(elements);
+    addEventListeners(elements);
+    fetchDashboardData(elements);
+}
+
+function getElements() {
+    return {
         benchmarkSelect: document.getElementById('benchmark-select'),
         dateDisplay: document.getElementById('date-display'),
         rrgChartContainer: document.getElementById('rrg-chart'),
@@ -41,27 +136,20 @@ document.addEventListener('DOMContentLoaded', () => {
         fullDataTableBody: document.getElementById('full-data-table-body'),
         dashboardContainer: document.querySelector('.dashboard-container'),
         resetZoomBtn: document.getElementById('reset-zoom-btn'),
-        // 新しい要素
         timeAxisSlider: document.getElementById('time-axis-slider'),
         tailLengthSlider: document.getElementById('tail-length-slider'),
         timeAxisValue: document.getElementById('time-axis-value'),
         tailLengthValue: document.getElementById('tail-length-value'),
-        // ケバブメニュー関連要素
         exportMenuBtn: document.getElementById('export-menu-btn'),
         exportDropdown: document.getElementById('export-dropdown'),
+        tabButtons: document.querySelectorAll('.tab-button'),
+        tabContents: document.querySelectorAll('.tab-content'),
+        sectorButtons: document.getElementById('sector-buttons'),
+        performanceChartContainer: document.getElementById('performance-chart'),
+        chartTitle: document.getElementById('chart-title'),
+        periodButtons: document.querySelectorAll('.period-btn')
     };
-
-    // デバッグ情報
-    console.log('Elements found:', Object.keys(elements).map(key => ({
-        [key]: !!elements[key]
-    })));
-
-    initializeBenchmarkSelector(elements);
-    initializeCharts(elements);
-    initializeSliders(elements);
-    addEventListeners(elements);
-    fetchDashboardData(elements);
-});
+}
 
 function initializeBenchmarkSelector(elements) {
     if (!elements.benchmarkSelect) {
@@ -82,9 +170,16 @@ function initializeCharts(elements) {
         return;
     }
     rrgChart = echarts.init(elements.rrgChartContainer);
+    
+    if (!elements.performanceChartContainer) {
+        console.error('performance-chart container not found');
+        return;
+    }
+    performanceChart = echarts.init(elements.performanceChartContainer);
 
     window.addEventListener('resize', () => {
         rrgChart?.resize();
+        performanceChart?.resize();
     });
 }
 
@@ -112,6 +207,42 @@ function initializeSliders(elements) {
             renderRRGChart(elements); // RRGチャートのみ再描画
         });
     }
+}
+
+function initializeTabs(elements) {
+    elements.tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const targetTab = button.dataset.tab;
+            switchTab(targetTab, elements);
+        });
+    });
+}
+
+function initializeSectorButtons(elements) {
+    const container = elements.sectorButtons;
+    if (!container) {
+        console.error('sector-buttons container not found');
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    Object.entries(SECTOR_ETFS).forEach(([ticker, name]) => {
+        const button = document.createElement('button');
+        button.className = 'sector-btn';
+        button.dataset.sector = ticker;
+        button.textContent = name;
+        
+        if (ticker === state.selectedSector) {
+            button.classList.add('active');
+        }
+        
+        button.addEventListener('click', () => {
+            selectSector(ticker, elements);
+        });
+        
+        container.appendChild(button);
+    });
 }
 
 // イベントリスナーの追加（安全版）
@@ -181,6 +312,235 @@ function addEventListeners(elements) {
             exportDropdown: !!elements.exportDropdown
         });
     }
+
+    // 期間選択ボタンのイベントリスナー
+    elements.periodButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const period = button.dataset.period;
+            selectPeriod(period, elements);
+        });
+    });
+}
+
+function switchTab(tabName, elements) {
+    state.activeTab = tabName;
+    
+    // タブボタンの状態更新
+    elements.tabButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+    
+    // タブコンテンツの表示切り替え
+    elements.tabContents.forEach(content => {
+        content.classList.toggle('active', content.id === `${tabName}-tab`);
+    });
+
+    // 構成銘柄タブがアクティブになった時の処理
+    if (tabName === 'constituents') {
+        updatePerformanceChart(elements);
+    }
+}
+
+function selectSector(sectorTicker, elements) {
+    state.selectedSector = sectorTicker;
+    
+    // セクターボタンの状態更新
+    elements.sectorButtons.querySelectorAll('.sector-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.sector === sectorTicker);
+    });
+    
+    // チャートタイトル更新
+    const sectorName = SECTOR_ETFS[sectorTicker];
+    elements.chartTitle.textContent = `${sectorName} 構成銘柄パフォーマンス`;
+    
+    // パフォーマンスチャート更新
+    updatePerformanceChart(elements);
+}
+
+function selectPeriod(period, elements) {
+    state.selectedPeriod = period;
+    
+    // 期間ボタンの状態更新
+    elements.periodButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.period === period);
+    });
+    
+    // パフォーマンスチャート更新
+    updatePerformanceChart(elements);
+}
+
+function updatePerformanceChart(elements) {
+    if (!CONSTITUENTS_DATA[state.selectedSector]) {
+        performanceChart.setOption({
+            title: {
+                text: 'このセクターの構成銘柄データは準備中です',
+                left: 'center',
+                top: 'middle',
+                textStyle: {
+                    fontSize: 16,
+                    color: '#666'
+                }
+            }
+        });
+        return;
+    }
+
+    // 模擬データでパフォーマンスチャートを描画
+    const constituents = CONSTITUENTS_DATA[state.selectedSector];
+    const periodDays = getPeriodDays(state.selectedPeriod);
+    
+    // X軸のカテゴリ（期間に応じて調整）
+    const categories = generateCategories(periodDays);
+    
+    // 各銘柄のパフォーマンスデータを生成（模擬データ）
+    const series = constituents.map((stock, index) => {
+        return {
+            name: stock.name,
+            type: 'line',
+            data: generatePerformanceData(periodDays, index),
+            symbol: 'none',
+            lineStyle: {
+                width: 2
+            },
+            emphasis: {
+                focus: 'series'
+            }
+        };
+    });
+
+    const option = {
+        title: {
+            text: '',
+            left: 'center'
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'cross'
+            },
+            formatter: function(params) {
+                let result = `${params[0].axisValue}<br/>`;
+                params.forEach(param => {
+                    const value = param.value;
+                    const color = value >= 0 ? '#26A69A' : '#EF5350';
+                    const sign = value >= 0 ? '+' : '';
+                    result += `<span style="color:${param.color};">●</span> ${param.seriesName}: <span style="color:${color};">${sign}${value.toFixed(2)}%</span><br/>`;
+                });
+                return result;
+            }
+        },
+        legend: {
+            type: 'scroll',
+            orient: 'horizontal',
+            left: 'center',
+            bottom: 0,
+            pageButtonPosition: 'end'
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            top: '10%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: categories,
+            axisLabel: {
+                interval: Math.floor(categories.length / 8), // 8つ程度のラベルを表示
+                rotate: 45
+            }
+        },
+        yAxis: {
+            type: 'value',
+            name: '騰落率 (%)',
+            axisLabel: {
+                formatter: '{value}%'
+            },
+            splitLine: {
+                lineStyle: {
+                    type: 'dashed'
+                }
+            },
+            axisLine: {
+                show: true,
+                lineStyle: {
+                    color: '#999'
+                }
+            }
+        },
+        series: series,
+        dataZoom: [
+            {
+                type: 'inside',
+                start: 0,
+                end: 100
+            },
+            {
+                start: 0,
+                end: 100,
+                height: 30,
+                bottom: 60
+            }
+        ]
+    };
+
+    performanceChart.setOption(option, true);
+}
+
+function getPeriodDays(period) {
+    switch(period) {
+        case '5d': return 5;
+        case '2w': return 14;
+        case '1m': return 30;
+        case '1y': return 252; // 営業日ベース
+        case 'ytd': return getDaysFromYearStart();
+        default: return 30;
+    }
+}
+
+function getDaysFromYearStart() {
+    const now = new Date();
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+    const diffTime = Math.abs(now - yearStart);
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+function generateCategories(days) {
+    const categories = [];
+    const today = new Date();
+    
+    for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        
+        if (days <= 30) {
+            categories.push(date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }));
+        } else {
+            categories.push(date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'short' }));
+        }
+    }
+    
+    return categories;
+}
+
+function generatePerformanceData(days, stockIndex) {
+    const data = [0]; // 開始日は0%
+    let cumulative = 0;
+    
+    // 銘柄ごとに異なる傾向を持たせる
+    const trend = (stockIndex % 3 - 1) * 0.02; // -0.02, 0, 0.02
+    const volatility = 0.5 + (stockIndex % 5) * 0.3; // 0.5 - 2.0
+    
+    for (let i = 1; i < days; i++) {
+        // ランダムウォーク + トレンド
+        const dailyReturn = (Math.random() - 0.5) * volatility + trend;
+        cumulative += dailyReturn;
+        data.push(Number(cumulative.toFixed(2)));
+    }
+    
+    return data;
 }
 
 async function fetchDashboardData(elements) {
@@ -524,8 +884,10 @@ function setLoadingState(elements, isLoading) {
 
     if (isLoading) {
         rrgChart?.showLoading();
+        performanceChart?.showLoading();
     } else {
         rrgChart?.hideLoading();
+        performanceChart?.hideLoading();
     }
 }
 
@@ -620,4 +982,131 @@ function downloadFile(content, filename, contentType) {
     document.body.removeChild(link);
     
     window.URL.revokeObjectURL(url);
+}
+
+// ユーティリティ関数群
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function throttle(func, limit) {
+    let inThrottle;
+    return function() {
+        const args = arguments;
+        const context = this;
+        if (!inThrottle) {
+            func.apply(context, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    }
+}
+
+// パフォーマンス監視
+function logPerformance(label, fn) {
+    console.time(label);
+    const result = fn();
+    console.timeEnd(label);
+    return result;
+}
+
+// エラーハンドリング
+window.addEventListener('error', (event) => {
+    console.error('Global error:', event.error);
+    // 本番環境では外部サービスにエラーを送信
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+    // 本番環境では外部サービスにエラーを送信
+    event.preventDefault();
+});
+
+// DOM準備完了の確認
+function domReady(fn) {
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(fn, 1);
+    } else {
+        document.addEventListener('DOMContentLoaded', fn);
+    }
+}
+
+// ローカルストレージ管理（設定保存用）
+const LocalStorage = {
+    set: (key, value) => {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+            console.warn('LocalStorage set failed:', e);
+        }
+    },
+    
+    get: (key, defaultValue = null) => {
+        try {
+            const item = localStorage.getItem(key);
+            return item ? JSON.parse(item) : defaultValue;
+        } catch (e) {
+            console.warn('LocalStorage get failed:', e);
+            return defaultValue;
+        }
+    },
+    
+    remove: (key) => {
+        try {
+            localStorage.removeItem(key);
+        } catch (e) {
+            console.warn('LocalStorage remove failed:', e);
+        }
+    }
+};
+
+// 設定の永続化
+function saveSettings() {
+    LocalStorage.set('dashboardSettings', {
+        benchmark: state.benchmark,
+        tailLength: state.tailLength,
+        selectedSector: state.selectedSector,
+        selectedPeriod: state.selectedPeriod,
+        activeTab: state.activeTab
+    });
+}
+
+function loadSettings() {
+    const settings = LocalStorage.get('dashboardSettings');
+    if (settings) {
+        state.benchmark = settings.benchmark || state.benchmark;
+        state.tailLength = settings.tailLength || state.tailLength;
+        state.selectedSector = settings.selectedSector || state.selectedSector;
+        state.selectedPeriod = settings.selectedPeriod || state.selectedPeriod;
+        state.activeTab = settings.activeTab || state.activeTab;
+    }
+}
+
+// アプリケーション終了時の処理
+window.addEventListener('beforeunload', () => {
+    saveSettings();
+});
+
+// デバッグ用の関数（開発時のみ）
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    window.debugDashboard = {
+        state,
+        rrgChart,
+        performanceChart,
+        exportData: () => exportData('json'),
+        clearData: () => {
+            state.dashboardData = { benchmark_ohlc: [], historical_data: {}, date_range: [] };
+            state.visibleSectors.clear();
+        }
+    };
+    
+    console.log('デバッグモード有効: window.debugDashboard でアクセス可能');
 }

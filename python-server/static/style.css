@@ -1,11 +1,23 @@
+/* ========================================
+   Enhanced Sector Rotation Dashboard Styles
+   ======================================== */
+
+/* === ベーススタイル === */
+* {
+    box-sizing: border-box;
+}
+
 body {
-    font-family: Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
     margin: 0;
     padding: 20px;
     background-color: #f4f7f6;
     color: #333;
+    line-height: 1.6;
+    font-size: 14px;
 }
 
+/* === メインコンテナ === */
 .dashboard-container {
     max-width: 1600px;
     margin: 0 auto;
@@ -20,6 +32,7 @@ body {
     transition: opacity 0.3s ease-in-out;
 }
 
+/* === ヘッダー === */
 header {
     display: flex;
     justify-content: space-between;
@@ -34,24 +47,36 @@ header h1 {
     margin: 0;
     font-size: 24px;
     color: #0056b3;
+    font-weight: 600;
 }
 
 .controls {
     display: flex;
     align-items: center;
+    gap: 15px;
 }
 
-.controls label, .controls span {
+.controls label, 
+.controls span {
     margin-right: 10px;
     font-size: 14px;
+    font-weight: 500;
 }
 
 .controls select {
-    padding: 8px;
+    padding: 8px 12px;
     border-radius: 4px;
     border: 1px solid #ccc;
     font-size: 14px;
     min-width: 150px;
+    background-color: #fff;
+    transition: border-color 0.2s ease;
+}
+
+.controls select:focus {
+    outline: none;
+    border-color: #0056b3;
+    box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.1);
 }
 
 .controls button {
@@ -62,15 +87,93 @@ header h1 {
     border-radius: 4px;
     font-size: 14px;
     cursor: pointer;
-    margin-left: 20px;
     transition: all 0.2s ease;
+    font-weight: 500;
 }
 
 .controls button:hover {
     background-color: #0056b3;
     color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 86, 179, 0.2);
 }
 
+.controls button:active {
+    transform: translateY(0);
+}
+
+/* === タブ関連のスタイル === */
+.tab-container {
+    margin-bottom: 20px;
+    flex-shrink: 0;
+}
+
+.tab-buttons {
+    display: flex;
+    border-bottom: 2px solid #ddd;
+    background-color: #f8f9fa;
+    border-radius: 6px 6px 0 0;
+}
+
+.tab-button {
+    padding: 12px 24px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: #666;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.tab-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 86, 179, 0.1), transparent);
+    transition: left 0.5s ease;
+}
+
+.tab-button:hover::before {
+    left: 100%;
+}
+
+.tab-button.active {
+    color: #0056b3;
+    border-bottom-color: #0056b3;
+    background-color: #fff;
+    box-shadow: 0 -2px 4px rgba(0, 86, 179, 0.1);
+}
+
+.tab-button:hover {
+    color: #0056b3;
+    background-color: #fff;
+}
+
+.tab-content {
+    display: none;
+    flex-grow: 1;
+    overflow: hidden;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.tab-content.active {
+    display: flex;
+    flex-direction: column;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* === メインレイアウト === */
 main {
     display: flex;
     flex-grow: 1;
@@ -78,23 +181,23 @@ main {
     overflow: hidden;
 }
 
-/* 左側のチャートエリア */
+/* === RRGタブのスタイル === */
 .chart-area-left {
     flex: 3;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 15px;
     min-width: 0;
 }
 
-/* エクスポートパネル（ケバブメニュー形式） */
+/* === エクスポートパネル（ケバブメニュー形式） === */
 .export-panel {
-    background-color: #fdfdfd;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    background: linear-gradient(135deg, #fdfdfd 0%, #f8f9fa 100%);
+    border: 1px solid #e0e6ed;
+    border-radius: 6px;
     padding: 12px 15px;
     flex-shrink: 0;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -104,7 +207,7 @@ main {
     margin: 0 0 4px 0;
     font-size: 14px;
     color: #0056b3;
-    font-weight: bold;
+    font-weight: 600;
 }
 
 .export-info {
@@ -113,7 +216,7 @@ main {
     margin: 0;
 }
 
-/* ケバブメニューのスタイル */
+/* === ケバブメニューのスタイル === */
 .export-menu {
     position: relative;
     display: inline-block;
@@ -125,7 +228,7 @@ main {
     cursor: pointer;
     padding: 8px;
     border-radius: 4px;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -133,6 +236,7 @@ main {
 
 .kebab-button:hover {
     background-color: #f0f4f8;
+    transform: scale(1.05);
 }
 
 .kebab-dots {
@@ -146,33 +250,36 @@ main {
     height: 4px;
     background-color: #666;
     border-radius: 50%;
+    transition: all 0.2s ease;
 }
 
 .kebab-button:hover .dot {
     background-color: #0056b3;
+    transform: scale(1.2);
 }
 
-/* ドロップダウンメニュー */
+/* === ドロップダウンメニュー === */
 .export-dropdown {
     position: absolute;
     top: 100%;
     right: 0;
     background: white;
     border: 1px solid #ddd;
-    border-radius: 4px;
+    border-radius: 6px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     min-width: 160px;
     z-index: 1000;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(-10px);
+    transform: translateY(-10px) scale(0.95);
     transition: all 0.2s ease;
+    overflow: hidden;
 }
 
 .export-dropdown.show {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
 }
 
 .export-dropdown-item {
@@ -195,113 +302,122 @@ main {
 }
 
 .export-dropdown-item:first-child {
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
 }
 
 .export-dropdown-item:last-child {
-    border-bottom-left-radius: 4px;
-    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
 }
 
 .export-dropdown-item span {
     font-size: 14px;
 }
 
-/* 新しいスライダーコントロール */
+/* === スライダーコントロール === */
 .slider-controls {
-    background-color: #fdfdfd;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    background: linear-gradient(135deg, #fdfdfd 0%, #f8f9fa 100%);
+    border: 1px solid #e0e6ed;
+    border-radius: 6px;
     padding: 15px;
     display: flex;
     gap: 30px;
     align-items: center;
     flex-shrink: 0;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .slider-group {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     flex: 1;
 }
 
 .slider-group label {
     font-size: 14px;
-    font-weight: bold;
+    font-weight: 600;
     color: #0056b3;
     min-width: 80px;
 }
 
 .slider {
     flex: 1;
-    height: 6px;
-    border-radius: 3px;
-    background: #ddd;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, #e9ecef 0%, #dee2e6 100%);
     outline: none;
     -webkit-appearance: none;
     appearance: none;
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: all 0.2s ease;
+}
+
+.slider:hover {
+    background: linear-gradient(to right, #dee2e6 0%, #ced4da 100%);
 }
 
 .slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
-    background: #0056b3;
+    background: linear-gradient(135deg, #0056b3 0%, #003d82 100%);
     cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(0, 86, 179, 0.3);
     transition: all 0.2s ease;
+    border: 2px solid #fff;
 }
 
 .slider::-webkit-slider-thumb:hover {
-    background: #003d82;
+    background: linear-gradient(135deg, #003d82 0%, #002952 100%);
     transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0, 86, 179, 0.4);
 }
 
 .slider::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
-    background: #0056b3;
+    background: linear-gradient(135deg, #0056b3 0%, #003d82 100%);
     cursor: pointer;
-    border: none;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(0, 86, 179, 0.3);
     transition: all 0.2s ease;
 }
 
 .slider::-moz-range-thumb:hover {
-    background: #003d82;
+    background: linear-gradient(135deg, #003d82 0%, #002952 100%);
     transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0, 86, 179, 0.4);
 }
 
 .slider-value {
     font-size: 13px;
-    font-weight: bold;
+    font-weight: 600;
     color: #333;
-    min-width: 60px;
+    min-width: 70px;
     text-align: center;
-    background-color: #f0f4f8;
-    padding: 4px 8px;
-    border-radius: 3px;
+    background: linear-gradient(135deg, #f0f4f8 0%, #e8f0fe 100%);
+    padding: 6px 10px;
+    border-radius: 4px;
     border: 1px solid #e0e6ed;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-/* RRGチャートのスタイル */
+/* === RRGチャートのスタイル === */
 .rrg-chart {
     flex-grow: 1;
     min-height: 400px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border: 1px solid #e0e6ed;
+    border-radius: 6px;
     background-color: #fdfdfd;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-/* 右側のテーブルエリア */
+/* === テーブルエリア === */
 .table-area-right {
     flex: 2;
     display: flex;
@@ -318,99 +434,334 @@ main {
 .table-container {
     flex: 1;
     min-width: 250px;
-    background-color: #fdfdfd;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    background: linear-gradient(135deg, #fdfdfd 0%, #f8f9fa 100%);
+    border: 1px solid #e0e6ed;
+    border-radius: 6px;
     padding: 15px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .table-container h2 {
     font-size: 16px;
     margin-top: 0;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     color: #0056b3;
     text-align: center;
+    font-weight: 600;
 }
 
 .full-data-table-container {
     flex-grow: 1;
-    background-color: #fdfdfd;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    background: linear-gradient(135deg, #fdfdfd 0%, #f8f9fa 100%);
+    border: 1px solid #e0e6ed;
+    border-radius: 6px;
     padding: 15px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .full-data-table-container h2 {
     font-size: 18px;
     margin-top: 0;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     color: #0056b3;
+    font-weight: 600;
 }
 
 .table-wrapper {
     overflow: auto;
     flex-grow: 1;
+    border-radius: 4px;
 }
 
+/* === テーブルスタイル === */
 table {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+    background-color: #fff;
 }
 
-table th, table td {
-    border: 1px solid #eee;
-    padding: 6px 10px;
+table th, 
+table td {
+    border: 1px solid #e9ecef;
+    padding: 8px 12px;
     text-align: left;
 }
 
 table th {
-    background-color: #f0f4f8;
-    font-weight: bold;
+    background: linear-gradient(135deg, #f0f4f8 0%, #e8f0fe 100%);
+    font-weight: 600;
     position: sticky;
     top: 0;
+    z-index: 10;
+    color: #0056b3;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+table tbody tr {
+    transition: background-color 0.2s ease;
 }
 
 table tbody tr:nth-child(even) {
-    background-color: #f9f9f9;
+    background-color: #f8f9fa;
 }
 
 table tbody tr:hover {
     background-color: #e8f4f8;
+    transform: scale(1.001);
+    box-shadow: 0 2px 4px rgba(0, 86, 179, 0.1);
 }
 
 .sector-cell {
     display: flex;
     align-items: center;
+    gap: 8px;
 }
 
 .quadrant-indicator {
     display: inline-block;
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
     border-radius: 3px;
-    margin-right: 8px;
     flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .price-up {
     color: #26A69A;
-    font-weight: bold;
+    font-weight: 600;
 }
 
 .price-down {
     color: #EF5350;
-    font-weight: bold;
+    font-weight: 600;
 }
 
-td, th {
-    white-space: nowrap;
+.ticker-cell {
+    font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+    font-size: 11px;
+    color: #666;
+    background-color: #f8f9fa;
+    padding: 4px 6px;
+    border-radius: 3px;
+    font-weight: 500;
 }
 
-/* レスポンシブ対応 */
+/* === 構成銘柄タブのスタイル === */
+.constituents-tab {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.sector-selector {
+    background: linear-gradient(135deg, #fdfdfd 0%, #f8f9fa 100%);
+    border: 1px solid #e0e6ed;
+    border-radius: 6px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.sector-selector h3 {
+    margin: 0 0 12px 0;
+    color: #0056b3;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.sector-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.sector-btn {
+    padding: 10px 18px;
+    border: 2px solid #e0e6ed;
+    background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+    color: #333;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.sector-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 86, 179, 0.1), transparent);
+    transition: left 0.5s ease;
+}
+
+.sector-btn:hover::before {
+    left: 100%;
+}
+
+.sector-btn:hover {
+    border-color: #0056b3;
+    color: #0056b3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 86, 179, 0.2);
+}
+
+.sector-btn.active {
+    border-color: #0056b3;
+    background: linear-gradient(135deg, #0056b3 0%, #003d82 100%);
+    color: #fff;
+    box-shadow: 0 4px 8px rgba(0, 86, 179, 0.3);
+}
+
+.sector-btn.active:hover {
+    background: linear-gradient(135deg, #003d82 0%, #002952 100%);
+    transform: translateY(-2px);
+}
+
+/* === パフォーマンスチャートコンテナ === */
+.performance-chart-container {
+    flex-grow: 1;
+    background: linear-gradient(135deg, #fdfdfd 0%, #f8f9fa 100%);
+    border: 1px solid #e0e6ed;
+    border-radius: 6px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.chart-title {
+    font-size: 18px;
+    color: #0056b3;
+    margin: 0;
+    font-weight: 600;
+}
+
+.period-selector {
+    display: flex;
+    gap: 6px;
+    background-color: #f8f9fa;
+    padding: 4px;
+    border-radius: 6px;
+    border: 1px solid #e0e6ed;
+}
+
+.period-btn {
+    padding: 6px 12px;
+    border: none;
+    background-color: transparent;
+    color: #666;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.period-btn:hover {
+    background-color: #e9ecef;
+    color: #0056b3;
+}
+
+.period-btn.active {
+    background: linear-gradient(135deg, #0056b3 0%, #003d82 100%);
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 86, 179, 0.3);
+}
+
+.performance-chart {
+    flex-grow: 1;
+    min-height: 400px;
+    border-radius: 4px;
+    background-color: #fff;
+}
+
+/* === ローディング状態 === */
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+    font-size: 16px;
+    color: #666;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.loading::before {
+    content: '';
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #0056b3;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* === フォーム要素の統一スタイル === */
+input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #0056b3;
+}
+
+/* === スクロールバーのカスタマイズ === */
+.table-wrapper::-webkit-scrollbar,
+.export-dropdown::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.table-wrapper::-webkit-scrollbar-track,
+.export-dropdown::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb,
+.export-dropdown::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover,
+.export-dropdown::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* === レスポンシブデザイン === */
 @media (max-width: 1200px) {
     .slider-controls {
         flex-direction: column;
@@ -421,18 +772,49 @@ td, th {
     .slider-group {
         flex-direction: column;
         align-items: stretch;
-        gap: 5px;
+        gap: 8px;
     }
     
     .slider-group label {
         min-width: auto;
         text-align: left;
     }
+
+    .candidate-tables {
+        flex-direction: column;
+        gap: 15px;
+    }
 }
 
 @media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    .dashboard-container {
+        height: calc(100vh - 20px);
+        padding: 15px;
+    }
+
+    header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+
+    header h1 {
+        font-size: 20px;
+        text-align: center;
+    }
+
+    .controls {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
     main {
         flex-direction: column;
+        gap: 15px;
     }
     
     .chart-area-left {
@@ -442,18 +824,200 @@ td, th {
     
     .table-area-right {
         flex: none;
-        height: 40vh;
+        height: auto;
     }
     
     .candidate-tables {
         flex-direction: column;
         gap: 10px;
     }
+
+    .sector-buttons {
+        justify-content: center;
+    }
+
+    .period-selector {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .chart-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+    }
+
+    .chart-title {
+        text-align: center;
+        font-size: 16px;
+    }
+
+    .tab-buttons {
+        flex-wrap: wrap;
+    }
+
+    .tab-button {
+        flex: 1;
+        min-width: 0;
+        padding: 10px 12px;
+        font-size: 13px;
+    }
 }
 
-.ticker-cell {
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    color: #666;
-    background-color: #f8f9fa;
+@media (max-width: 480px) {
+    .dashboard-container {
+        padding: 10px;
+    }
+
+    .sector-btn {
+        flex: 1;
+        min-width: 0;
+        text-align: center;
+    }
+
+    .controls {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .controls select,
+    .controls button {
+        width: 100%;
+    }
+
+    table {
+        font-size: 11px;
+    }
+
+    table th,
+    table td {
+        padding: 6px 8px;
+    }
 }
+
+/* === プリント用スタイル === */
+@media print {
+    body {
+        background-color: white;
+        color: black;
+    }
+
+    .dashboard-container {
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+
+    .export-panel,
+    .slider-controls,
+    .controls,
+    .tab-buttons {
+        display: none;
+    }
+
+    .rrg-chart,
+    .performance-chart {
+        border: 1px solid #ccc;
+    }
+}
+
+/* === ダークモード対応（オプション） === */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+    }
+
+    .dashboard-container {
+        background-color: #2d2d2d;
+        border-color: #404040;
+    }
+
+    .export-panel,
+    .slider-controls,
+    .sector-selector,
+    .table-container,
+    .full-data-table-container,
+    .performance-chart-container {
+        background: linear-gradient(135deg, #2d2d2d 0%, #363636 100%);
+        border-color: #404040;
+    }
+
+    table {
+        background-color: #2d2d2d;
+    }
+
+    table th {
+        background: linear-gradient(135deg, #404040 0%, #4a4a4a 100%);
+        color: #7db3f0;
+    }
+
+    table tbody tr:nth-child(even) {
+        background-color: #363636;
+    }
+
+    table tbody tr:hover {
+        background-color: #404040;
+    }
+
+    .controls select,
+    .period-selector {
+        background-color: #363636;
+        border-color: #404040;
+        color: #e0e0e0;
+    }
+
+    .tab-buttons {
+        background-color: #363636;
+    }
+
+    .slider {
+        background: linear-gradient(to right, #404040 0%, #4a4a4a 100%);
+    }
+}
+
+/* === アクセシビリティ向上 === */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* === 高コントラストモード === */
+@media (prefers-contrast: high) {
+    .quadrant-indicator,
+    .sector-btn,
+    .period-btn,
+    .tab-button {
+        border-width: 2px;
+    }
+
+    table th,
+    table td {
+        border-width: 2px;
+    }
+}
+
+/* === フォーカス表示の改善 === */
+button:focus,
+select:focus,
+input:focus,
+.sector-btn:focus,
+.period-btn:focus,
+.tab-button:focus {
+    outline: 2px solid #0056b3;
+    outline-offset: 2px;
+}
+
+/* === 追加のユーティリティクラス === */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.font-bold { font-weight: 600; }
+.font-normal { font-weight: 400; }
+.mb-0 { margin-bottom: 0; }
+.mt-0 { margin-top: 0; }
+.hidden { display: none; }
+.visible { display: block; }
