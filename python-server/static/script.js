@@ -147,7 +147,9 @@ function getElements() {
         sectorButtons: document.getElementById('sector-buttons'),
         performanceChartContainer: document.getElementById('performance-chart'),
         chartTitle: document.getElementById('chart-title'),
-        periodButtons: document.querySelectorAll('.period-btn')
+        periodButtons: document.querySelectorAll('.period-btn'),
+        selectAllBtn: document.getElementById('select-all-btn'),
+        clearAllBtn: document.getElementById('clear-all-btn')
     };
 }
 
@@ -320,6 +322,18 @@ function addEventListeners(elements) {
             selectPeriod(period, elements);
         });
     });
+    // 新しく追加：チェックボックス一括操作
+    if (elements.selectAllBtn) {
+        elements.selectAllBtn.addEventListener('click', () => {
+            selectAllCheckboxes(elements);
+        });
+    }
+
+    if (elements.clearAllBtn) {
+        elements.clearAllBtn.addEventListener('click', () => {
+            clearAllCheckboxes(elements);
+        });
+    }
 }
 
 function switchTab(tabName, elements) {
@@ -1109,4 +1123,41 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
     };
     
     console.log('デバッグモード有効: window.debugDashboard でアクセス可能');
+}
+
+// ファイルの最後に以下の2つの関数を追加
+function selectAllCheckboxes(elements) {
+    const checkboxes = elements.fullDataTableBody.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        if (!checkbox.checked) {
+            checkbox.checked = true;
+            const ticker = checkbox.dataset.ticker;
+            state.visibleSectors.add(ticker);
+        }
+    });
+    renderRRGChart(elements);
+    
+    // 視覚的フィードバック
+    elements.selectAllBtn.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+        elements.selectAllBtn.style.transform = 'scale(1)';
+    }, 150);
+}
+
+function clearAllCheckboxes(elements) {
+    const checkboxes = elements.fullDataTableBody.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            checkbox.checked = false;
+            const ticker = checkbox.dataset.ticker;
+            state.visibleSectors.delete(ticker);
+        }
+    });
+    renderRRGChart(elements);
+    
+    // 視覚的フィードバック
+    elements.clearAllBtn.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+        elements.clearAllBtn.style.transform = 'scale(1)';
+    }, 150);
 }
