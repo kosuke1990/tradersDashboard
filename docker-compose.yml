@@ -1,16 +1,109 @@
 version: '3.8'
 
 services:
-  # Pythonで動くWebアプリケーションサーバー
+  # PostgreSQLデータベース
+  postgres:
+    image: postgres:15-alpine
+    container_name: sector_rotation_db
+    environment:
+      POSTGRES_DB: sector_rotation
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secure_password_123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - app_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d sector_rotation"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redisキャッシュ（オプション：高速キャッシング）
+  redis:
+    image: redis:7-alpine
+    container_name: sector_rotation_cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app_network
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  # Pythonで動くWebアプリケーションサーバー（強化版）
   app:
     build:
       context: ./python-server
       dockerfile: Dockerfile
+    container_name: sector_rotation_app
     ports:
-      # ブラウザから http://localhost:8080 でアクセスできるようにする
       - "8080:8001"
     volumes:
-      # ローカルのpython-serverディレクトリをコンテナの/appに同期する
-      # これにより、コードを修正した際に自動でリロードがかかる
       - ./python-server:/app
+      - ./tickers_memo.csv:/app/tickers_memo.csv  # CSVファイルをマウント
+    environment:
+      # データベース接続設定
+      DB_HOST: postgres
+      DB_NAME: sector_rotation
+      DB_USER: admin
+      DB_PASSWORD: secure_password_123
+      DB_PORT: 5432
+      
+      # Redis設定
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      
+      # アプリケーション設定
+      ENVIRONMENT: development
+      DEBUG: "true"
+      
+      # Yahoo Finance APIの制限対策
+      CACHE_EXPIRY_HOURS: 1
+      FORCE_REFRESH: "false"
+      
     command: ["uvicorn", "processing:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # 管理用のPgAdmin（開発・デバッグ用）
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: sector_rotation_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "8081:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - app_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  app_network:
+    driver: bridge
