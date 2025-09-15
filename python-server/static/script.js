@@ -672,7 +672,7 @@ function renderRRGChart(elements) {
                 symbol: 'none', 
                 lineStyle: { width: 2, color }, 
                 tooltip: { show: false },
-                // z: 10
+                z: 10
             },
             { 
                 name: sector.name, 
@@ -686,7 +686,7 @@ function renderRRGChart(elements) {
                     position: 'right', 
                     fontSize: 10 
                 },
-                // z: 10
+                z: 10
             }
         ];
     });
